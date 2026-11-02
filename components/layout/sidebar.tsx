@@ -1,16 +1,22 @@
+"use client";
 
-"use client" ; 
-
-import Image from "next/image" ; 
-import Link from "next/link" ;
-import{ usePathname } from "next/navigation" ;
-import { useEffect, useRef, useState, type SVGProps } from "react" ;
-import {ArrowLeftRight, BookOpen, LayoutDashboard, Menu, Repeat2, Scale, X} from "lucide-react" ;
-
+import Image from "next/image";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useEffect, useRef, type SVGProps } from "react";
+import {
+  ArrowLeftRight,
+  BookOpen,
+  LayoutDashboard,
+  Menu,
+  Repeat2,
+  Scale,
+  X,
+} from "lucide-react";
 
 function VelaAgentIcon(props: SVGProps<SVGSVGElement>) {
-    return ( 
-        <svg
+  return (
+    <svg
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
@@ -33,194 +39,168 @@ function VelaAgentIcon(props: SVGProps<SVGSVGElement>) {
 }
 
 const navigation = [
-  { label: "Overview", href: "/", icon: LayoutDashboard },
-  { label: "Vela Assistant", href: "/assistant", icon: VelaAgentIcon },
-  { label: "Transactions", href: "/transactions", icon: ArrowLeftRight },
-  { label: "Subscriptions", href: "/subscriptions", icon: Repeat2 },
-  { label: "Digital Library", href: "/library", icon: BookOpen },
-  { label: "Resolution Center", href: "/cases", icon: Scale },
+  {
+    label: "Overview",
+    href: "/workspace",
+    icon: LayoutDashboard,
+  },
+  {
+    label: "Vela Assistant",
+    href: "/workspace/assistant",
+    icon: VelaAgentIcon,
+  },
+  {
+    label: "Transactions",
+    href: "/workspace/transactions",
+    icon: ArrowLeftRight,
+  },
+  {
+    label: "Subscriptions",
+    href: "/workspace/subscriptions",
+    icon: Repeat2,
+  },
+  {
+    label: "Digital Library",
+    href: "/workspace/library",
+    icon: BookOpen,
+  },
+  {
+    label: "Resolution Center",
+    href: "/workspace/cases",
+    icon: Scale,
+  },
 ];
 
-function Brand() {
+type NavigationProps = {
+  onNavigate?: () => void;
+};
+
+function Brand({ onNavigate }: NavigationProps) {
   return (
-    <Link href="/" className="flex items-center gap-2.5">
+    <Link
+      href="/workspace"
+      onClick={onNavigate}
+      className="flex w-fit items-center gap-3 rounded-lg focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-blue-600"
+    >
       <Image
         src="/velapal-logo.png"
         alt=""
         width={36}
         height={36}
-        className="object-contain"
+        className="size-9 object-contain"
       />
 
-      <span className="text-2xl font-semibold tracking-tight text-[#0B326C]">
+      <span className="text-xl font-semibold tracking-tight text-slate-900">
         VelaPal
       </span>
     </Link>
   );
 }
 
-function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
+function Navigation({ onNavigate }: NavigationProps) {
   const pathname = usePathname();
 
   return (
-    <div className="flex h-full flex-col p-5">
-      <Brand />
+    <nav aria-label="Workspace" className="mt-8 space-y-1">
+      {navigation.map((item) => {
+        const Icon = item.icon;
 
-      <div className="mt-8 rounded-xl border border-slate-200 p-3">
-        <p className="text-[10px] font-medium tracking-widest text-slate-500">
-          WORKSPACE
-        </p>
+        const isActive =
+          pathname === item.href ||
+          (item.href !== "/workspace" &&
+            pathname.startsWith(`${item.href}/`));
 
-        <p className="mt-1 text-sm font-medium text-slate-800">
-          Personal workspace
-        </p>
-      </div>
-
-      <p className="mt-8 px-3 text-[10px] font-medium tracking-widest text-slate-400">
-        MAIN MENU
-      </p>
-
-      <nav aria-label="Main navigation" className="mt-3 space-y-1.5">
-        {navigation.map(({ label, href, icon: Icon }) => {
-          const isActive =
-            pathname === href ||
-            (href !== "/" && pathname.startsWith(`${href}/`));
-
-          return (
-            <Link
-              key={href}
-              href={href}
-              onClick={onNavigate}
-              aria-current={isActive ? "page" : undefined}
-              className={`flex min-h-11 items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors ${
-                isActive
-                  ? "bg-blue-50 font-medium text-blue-700"
-                  : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
-              }`}
-            >
-              <Icon aria-hidden="true" className="h-5 w-5 shrink-0" />
-              <span>{label}</span>
-            </Link>
-          );
-        })}
-      </nav>
-
-      <div className="mt-auto border-t border-slate-100 pt-5">
-        <p className="text-xs font-medium text-slate-700">
-          Your money, in your hands.
-        </p>
-
-        <p className="mt-1 text-xs leading-relaxed text-slate-500">
-          Thoughtful help. Always your decision.
-        </p>
-      </div>
-    </div>
+        return (
+          <Link
+            key={item.href}
+            href={item.href}
+            onClick={onNavigate}
+            aria-current={isActive ? "page" : undefined}
+            className={`flex min-h-11 items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 ${
+              isActive
+                ? "bg-blue-50 text-blue-700"
+                : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+            }`}
+          >
+            <Icon aria-hidden="true" className="size-5 shrink-0" />
+            <span>{item.label}</span>
+          </Link>
+        );
+      })}
+    </nav>
   );
 }
 
 export default function Sidebar() {
-  const [isOpen, setIsOpen] = useState(false);
-  const drawerRef = useRef<HTMLElement>(null);
-  const triggerRef = useRef<HTMLButtonElement>(null);
+  const drawerRef = useRef<HTMLDialogElement>(null);
 
   useEffect(() => {
-    if (!isOpen) return;
+    const desktop = window.matchMedia("(min-width: 64rem)");
 
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-
-    drawerRef.current?.querySelector<HTMLButtonElement>("button")?.focus();
-
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        setIsOpen(false);
-      }
-
-      if (event.key !== "Tab") return;
-
-      const elements = drawerRef.current?.querySelectorAll<HTMLElement>(
-        "button, a[href]",
-      );
-
-      if (!elements?.length) return;
-
-      const first = elements[0];
-      const last = elements[elements.length - 1];
-
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
+    function handleViewportChange() {
+      if (desktop.matches) {
+        drawerRef.current?.close();
       }
     }
 
-    document.addEventListener("keydown", handleKeyDown);
+    desktop.addEventListener("change", handleViewportChange);
 
     return () => {
-      document.body.style.overflow = previousOverflow;
-      document.removeEventListener("keydown", handleKeyDown);
-      triggerRef.current?.focus();
+      desktop.removeEventListener("change", handleViewportChange);
     };
-  }, [isOpen]);
+  }, []);
+
+  function closeDrawer() {
+    drawerRef.current?.close();
+  }
 
   return (
     <>
-      {/* Desktop */}
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 border-r border-slate-200 bg-white lg:block">
-        <SidebarContent />
+      <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col overflow-y-auto border-r border-slate-200 bg-white p-5 lg:flex">
+        <Brand />
+        <Navigation />
+
+        <p className="mt-auto pt-8 text-xs leading-5 text-slate-500">
+          Your money, in your hands.
+        </p>
       </aside>
 
-      {/* Header mobile */}
       <header className="fixed inset-x-0 top-0 z-30 flex h-16 items-center justify-between border-b border-slate-200 bg-white px-5 lg:hidden">
         <Brand />
 
         <button
-          ref={triggerRef}
           type="button"
           aria-label="Open navigation"
-          aria-expanded={isOpen}
-          aria-controls="mobile-sidebar"
-          onClick={() => setIsOpen(true)}
-          className="flex h-11 w-11 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100"
+          aria-haspopup="dialog"
+          aria-controls="mobile-navigation"
+          onClick={() => drawerRef.current?.showModal()}
+          className="grid size-11 place-items-center rounded-lg text-slate-700 hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-blue-600"
         >
-          <Menu aria-hidden="true" className="h-5 w-5" />
+          <Menu aria-hidden="true" className="size-5" />
         </button>
       </header>
 
-      {/* Drawer mobile */}
-      {isOpen && (
-        <div className="fixed inset-0 z-50 lg:hidden">
+      <dialog
+        ref={drawerRef}
+        id="mobile-navigation"
+        aria-label="Workspace navigation"
+        className="fixed inset-y-0 left-0 m-0 h-dvh max-h-none w-72 max-w-[85vw] overflow-y-auto overscroll-contain border-r border-slate-200 bg-white p-5 text-slate-900 backdrop:bg-slate-950/40 lg:hidden"
+      >
+        <div className="flex items-center justify-between gap-3">
+          <Brand onNavigate={closeDrawer} />
+
           <button
             type="button"
-            aria-label="Close navigation overlay"
-            tabIndex={-1}
-            onClick={() => setIsOpen(false)}
-            className="absolute inset-0 bg-slate-950/35"
-          />
-
-          <aside
-            ref={drawerRef}
-            id="mobile-sidebar"
-            role="dialog"
-            aria-modal="true"
-            aria-label="Navigation menu"
-            className="absolute inset-y-0 left-0 w-72 max-w-[85vw] overflow-y-auto bg-white shadow-xl"
+            aria-label="Close navigation"
+            onClick={closeDrawer}
+            className="grid size-11 shrink-0 place-items-center rounded-lg hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-blue-600"
           >
-            <button
-              type="button"
-              aria-label="Close navigation"
-              onClick={() => setIsOpen(false)}
-              className="absolute right-3 top-4 flex h-10 w-10 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100"
-            >
-              <X aria-hidden="true" className="h-5 w-5" />
-            </button>
-
-            <SidebarContent onNavigate={() => setIsOpen(false)} />
-          </aside>
+            <X aria-hidden="true" className="size-5" />
+          </button>
         </div>
-      )}
+
+        <Navigation onNavigate={closeDrawer} />
+      </dialog>
     </>
-    )
+  );
 }
