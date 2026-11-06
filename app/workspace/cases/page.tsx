@@ -1,10 +1,4 @@
-import FeaturePlaceholder from "@/components/ui/feature-placeholder";
-
+import CaseList from "@/features/disputes/case-list";
 export default function CasesPage() {
-  return (
-    <FeaturePlaceholder
-      title="Resolution Center"
-      description="Track disputes, review evidence, and consider resolution options."
-    />
-  );
+  return <CaseList />;
 }

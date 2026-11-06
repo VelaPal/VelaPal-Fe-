@@ -1,27 +1,44 @@
+﻿import Link from "next/link";
+import { ArrowUpRight, type LucideIcon } from "lucide-react";
 type StatCardProps = {
   label: string;
   value: string;
   description: string;
+  icon?: LucideIcon;
+  href?: string;
+  accent?: boolean;
 };
-
 export default function StatCard({
   label,
   value,
   description,
+  icon: Icon,
+  href,
+  accent = false,
 }: StatCardProps) {
-  return (
-    <article className="min-w-0 rounded-2xl border border-slate-200 bg-white p-5">
-      <h3 className="text-sm font-medium text-slate-600">
+  const content = (
+    <>
+      <span className="vp-metric-label">
         {label}
-      </h3>
-
-      <p className="mt-4 text-3xl font-semibold tracking-tight text-slate-900 tabular-nums">
-        {value}
-      </p>
-
-      <p className="mt-2 text-xs leading-5 text-slate-500">
+        {Icon && <Icon size={15} strokeWidth={1.6} aria-hidden="true" />}
+      </span>
+      <strong>{value}</strong>
+      <span className="vp-metric-description">
         {description}
-      </p>
+        {href && <ArrowUpRight size={12} aria-hidden="true" />}
+      </span>
+    </>
+  );
+  return href ? (
+    <Link
+      href={href}
+      className={`vp-metric${accent ? " vp-metric-accent" : ""}`}
+    >
+      {content}
+    </Link>
+  ) : (
+    <article className={`vp-metric${accent ? " vp-metric-accent" : ""}`}>
+      {content}
     </article>
   );
 }

@@ -7,6 +7,10 @@ const eslintConfig = defineConfig([
   ...nextTs,
   // Override default ignores of eslint-config-next.
   globalIgnores([
+    ".visual-audit/**",
+    "docs/extracted/**",
+    "mock-api/**",
+    "tests/**",
     // Default ignores of eslint-config-next:
     ".next/**",
     "out/**",

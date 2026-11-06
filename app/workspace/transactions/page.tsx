@@ -1,10 +1,5 @@
-import FeaturePlaceholder from "@/components/ui/feature-placeholder";
+import TransactionsContent from "@/features/transactions/components/transaction-content";
 
 export default function TransactionsPage() {
-  return (
-    <FeaturePlaceholder
-      title="Transactions"
-      description="Review your payments and purchase history in VelaPal."
-    />
-  );
+  return <TransactionsContent />;
 }

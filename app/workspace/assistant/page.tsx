@@ -1,10 +1,12 @@
-import FeaturePlaceholder from "@/components/ui/feature-placeholder";
-
-export default function AssistantPage() {
-  return (
-    <FeaturePlaceholder
-      title="Vela Assistant"
-      description="Plan purchases and review proposed actions before approving them."
-    />
+"use client";
+import { useSession } from "@/features/auth/session";
+import { Assistant } from "@/features/agent/assistant";
+import { SellerAssistant } from "@/features/workspace/seller-pages";
+export default function Page() {
+  const { session } = useSession();
+  return session?.activeWorkspace.type === "SELLER" ? (
+    <SellerAssistant />
+  ) : (
+    <Assistant />
   );
 }

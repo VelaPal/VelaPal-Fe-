@@ -1,20 +1,29 @@
-import type { ReactNode } from "react";
-import Sidebar from "@/components/layout/sidebar";
-
-type AppShellProps = {
-  children: ReactNode;
-};
-
-export default function AppShell({ children }: AppShellProps) {
+﻿import type { ReactNode } from "react";
+import Sidebar from "./sidebar";
+import WorkspaceControls from "./workspace-controls";
+export default function AppShell({ children }: { children: ReactNode }) {
   return (
-    <div className="min-h-screen bg-[#F6F8FC] text-[#1B293D]">
+    <div className="vp-app-shell">
+      <a className="vp-skip-link" href="#main-content">
+        Skip to content
+      </a>
       <Sidebar />
-
-      <main className="min-h-screen px-5 pb-10 pt-24 sm:px-8 lg:ml-64 lg:pt-10">
-        <div className="mx-auto w-full max-w-7xl">
+      <div className="vp-workspace-body">
+        <WorkspaceControls />
+        <main id="main-content" className="vp-main-content" tabIndex={-1}>
           {children}
-        </div>
-      </main>
+        </main>
+        <footer className="vp-workspace-footer">
+          <span>© 2026 VelaPal</span>
+          <span>
+            Your money, in your hands. <i aria-hidden="true" />{" "}
+            {process.env.NEXT_PUBLIC_API_MODE === "api"
+              ? "VelaPal workspace"
+              : "Prototype · Local demo data"}
+          </span>
+          <span>Always your decision.</span>
+        </footer>
+      </div>
     </div>
   );
 }

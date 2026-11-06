@@ -1,11 +1,13 @@
 "use client";
 
 import useSWR from "swr";
+import { useSession } from "@/features/auth/session";
 import { getOverviewSummary } from "@/services/overview.service";
 import type { OverviewSummaryData } from "@/features/overview/types";
 
 export function useOverview() {
-  const mode = process.env.NEXT_PUBLIC_API_MODE;
+  const {session} = useSession();
+  const mode = session?.activeWorkspace.workspaceId;
 
   const {
     data,
