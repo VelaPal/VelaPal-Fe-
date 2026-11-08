@@ -681,22 +681,46 @@ export function CustomerSettings() {
                 Email and WhatsApp delivery aren’t connected.
               </p>
             </Panel>
-            <Panel title="Connection">
-              <h3>PayPal Sandbox</h3>
-              <p className="vp-section-description">
-                Vela Market · USD · Prototype connection
-              </p>
-              <p className="vp-form-note">
-                Explore the planned experience with sample data. No live PayPal
-                account is connected.
-              </p>
-              <button
-                className="vp-secondary"
-                onClick={() => setConnection(true)}
-              >
-                View connection details
-              </button>
-            </Panel>
+            
+              <Panel title="Connection">
+                <div className="flex flex-col gap-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex min-w-0 items-center gap-3">
+                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-[#0B326D]">
+                        <Cloud size={21} aria-hidden="true" />
+                      </div>
+
+                      <div className="flex min-w-0 flex-col gap-1">
+                        <h3 className="m-0 text-sm font-semibold leading-5 text-[#0B326D]">
+                          PayPal Sandbox
+                        </h3>
+                        <p className="m-0 text-xs leading-5 text-slate-500">
+                          Vela Market · USD
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+         
+                  <p className="m-0 text-xs leading-5 text-slate-500">
+                    Explore PayPal payment workflows using sample data.
+                    No live PayPal account is currently connected.
+                  </p>
+
+     
+                  <div className="border-t border-slate-100 pt-3">
+                    <button
+                      type="button"
+                      className="vp-secondary inline-flex items-center gap-2"
+                      onClick={() => setConnection(true)}
+                    >
+                      View connection details
+                      <ArrowUpRight size={14} aria-hidden="true" />
+                    </button>
+                  </div>
+                </div>
+              </Panel>
+
           </div>
           {action.feedback}
           {connection && (
