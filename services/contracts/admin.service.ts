@@ -1,11 +1,5 @@
-import { apiData } from "./api-client";
-import type {
-  AdminCaseQueueItem,
-  AdminDetail,
-  ApprovalRequest,
-  AuditEvent,
-  Items,
-} from "./types";
+import * as dto from "./schemas";
+import { apiValidated } from "@/lib/api";
 const id = encodeURIComponent;
 export const adminService = {
   disputes: (
@@ -17,16 +11,21 @@ export const adminService = {
       | "CLOSED" = "ALL",
     assignedToMe = false,
   ) =>
-    apiData<Items<AdminCaseQueueItem>>(
+    apiValidated(
       `/admin/disputes?filter=${filter}&assignedToMe=${assignedToMe}`,
+      dto.itemsDto(dto.adminCaseDto),
     ),
   detail: (caseId: string) =>
-    apiData<AdminDetail>(`/admin/disputes/${id(caseId)}`),
+    apiValidated(`/admin/disputes/${id(caseId)}`, dto.adminDetailDto),
   assign: (caseId: string, reviewerId: string, reason: string) =>
-    apiData<unknown>(`/admin/disputes/${id(caseId)}/assignments`, {
-      method: "POST",
-      body: { reviewerId, reason, conflictDeclarationAccepted: true },
-    }),
+    apiValidated(
+      `/admin/disputes/${id(caseId)}/assignments`,
+      dto.assignmentDto,
+      {
+        method: "POST",
+        body: { reviewerId, reason, conflictDeclarationAccepted: true },
+      },
+    ),
   intervene: (
     caseId: string,
     controlVersion: number,
@@ -40,13 +39,17 @@ export const adminService = {
     reason: string,
     stepUpId: string,
   ) =>
-    apiData<unknown>(`/admin/disputes/${id(caseId)}/interventions`, {
-      method: "POST",
-      ifMatch: controlVersion,
-      body: { action, reason, stepUpId },
-    }),
+    apiValidated(
+      `/admin/disputes/${id(caseId)}/interventions`,
+      dto.interventionDto,
+      {
+        method: "POST",
+        ifMatch: controlVersion,
+        body: { action, reason, stepUpId },
+      },
+    ),
   approvalRequests: () =>
-    apiData<Items<ApprovalRequest>>("/admin/approval-requests"),
+    apiValidated("/admin/approval-requests", dto.itemsDto(dto.approvalDto)),
   decideApproval: (
     requestId: string,
     proposalVersion: number,
@@ -59,13 +62,18 @@ export const adminService = {
       reason: string;
     },
   ) =>
-    apiData<unknown>(`/admin/approval-requests/${id(requestId)}/decisions`, {
-      method: "POST",
-      ifMatch: proposalVersion,
-      body,
-    }),
+    apiValidated(
+      `/admin/approval-requests/${id(requestId)}/decisions`,
+      dto.approvalDecisionDto,
+      {
+        method: "POST",
+        ifMatch: proposalVersion,
+        body,
+      },
+    ),
   auditEvents: (caseId?: string) =>
-    apiData<Items<AuditEvent>>(
+    apiValidated(
       `/admin/audit-events${caseId ? `?caseId=${id(caseId)}` : ""}`,
+      dto.itemsDto(dto.auditDto),
     ),
 };

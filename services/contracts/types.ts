@@ -190,15 +190,16 @@ export interface LatestAssessment {
   audience: Audience;
   modelMode: "live" | "fixture";
   businessDataMode: "paypal_sandbox" | "synthetic_fixture";
-  category: DisputeCategory;
-  verifiedFacts: AssessmentFact[];
-  claims: AssessmentClaim[];
-  findings: AssessmentFinding[];
-  missingEvidence: string[];
-  uncertainty: string;
-  policyReferences: string[];
+  category?: DisputeCategory;
+  verifiedFacts?: AssessmentFact[];
+  claims?: AssessmentClaim[];
+  findings?: AssessmentFinding[];
+  missingEvidence?: string[];
+  uncertainty?: string;
+  policyReferences?: string[];
   nextStep: AiNextStep;
   requiresHumanApproval: boolean;
+  error?: { code: string; message: string; retryable: boolean };
 }
 export interface CaseCapabilities {
   canShareEvidence: boolean;
@@ -336,33 +337,39 @@ export interface Items<T> {
   nextCursor?: string | null;
 }
 
-/** Optional mock-only metadata. Not part of the frozen backend DTO.
- * In live mode these actions remain unavailable until BE supplies authoritative bindings.
- */
-export interface MockConsentBindings {
-  modelMode: "fixture";
-  sourceDigest: string;
-  mediationParamsHash: string;
-}
-export type BoundDisputeDetail = DisputeDetail & {
-  mockConsentBindings?: MockConsentBindings;
-};
+/** Only authorized public metadata; consent hash discovery is not defined. */
+export type BoundDisputeDetail = DisputeDetail;
 export type BoundEvidenceSource = EvidenceSource & {
-  mockShareParamsHash?: string;
   previewUrl?: string | null;
 };
 export interface AdminDetail {
-  case: DisputeCase & {
+  case: Pick<
+    DisputeCase,
+    | "caseId"
+    | "transactionId"
+    | "merchantId"
+    | "initiatorParty"
+    | "stage"
+    | "control"
+    | "caseVersion"
+    | "controlVersion"
+  > & {
+    category?: DisputeCategory;
+    orderId?: string | null;
+    officialPaypalDisputeId?: string | null;
     assignedReviewerId: string | null;
     investigationAccessGranted: boolean;
   };
-  sharedSources?: EvidenceSource[];
+  sharedSources?: (Pick<
+    EvidenceSource,
+    "sourceId" | "sourceVersion" | "ownerParty" | "originalName" | "locator"
+  > & { scanState?: ScanState })[];
   sharedPerspectives?: {
     customerStatement: string | null;
     sellerStatement: string | null;
   };
   latestAssessment?: LatestAssessment | null;
-  pendingApprovalRequests: unknown[];
+  pendingApprovalRequests?: unknown[];
 }
 export interface ApprovalRequest {
   approvalRequestId: string;
@@ -384,3 +391,79 @@ export interface CatalogProduct {
   variants: { id: string; amountMinor: number }[];
   currency: "USD";
 }
+
+/** Frozen public request and mutation response DTOs. */
+export interface CreateDisputeRequest {
+  transactionId: string | null;
+  orderId: string | null;
+  category: DisputeCategory;
+  statement: string;
+  audience: "CASE_SHARED";
+}
+export interface UploadIntent {
+  sourceId: string;
+  uploadId: string;
+  sourceVersion: number;
+  audience: "PRIVATE";
+  scanState: "QUARANTINED";
+  uploadHandle: { method: "PUT"; url: string; expiresInSeconds: number };
+}
+export interface FinalizedSource {
+  sourceId: string;
+  sourceVersion: number;
+  audience: Audience;
+  scanState: ScanState;
+  readyForAnalysis: boolean;
+  indexJobStatus: string;
+}
+export interface ConsentRecord {
+  consentId: string;
+  actionRequestId: string;
+  party: PartyType;
+  intent: "ACCEPT_PROPOSAL_TERMS" | "AUTHORIZE_FINANCIAL_EXECUTION";
+  decision: "APPROVED" | "REJECTED";
+  paramsHash: string;
+  allRequiredConsentsMet: boolean;
+  approvedAt: string | null;
+  expiresAt: string;
+}
+export interface ExecutionAccepted {
+  operationId: string;
+  type: OperationType;
+  actionRequestId: string;
+  caseStage: CaseStage;
+  operationStatus: OperationStatus;
+  pollUrl: string;
+}
+export interface StepUpChallenge {
+  challengeId: string;
+  purpose:
+    | "ADMIN_INTERVENTION"
+    | "ADMIN_APPROVAL"
+    | "WORKSPACE_SWITCH"
+    | "MERCHANT_EXECUTION";
+  targetId: string;
+  expiresAt: string;
+}
+
+export type DisputeListItem = Pick<
+  DisputeCase,
+  | "caseId"
+  | "transactionId"
+  | "initiatorParty"
+  | "category"
+  | "stage"
+  | "control"
+  | "caseVersion"
+  | "controlVersion"
+> &
+  Partial<
+    Pick<
+      DisputeCase,
+      | "orderId"
+      | "merchantId"
+      | "privateContextVersion"
+      | "accessRevision"
+      | "nextAction"
+    >
+  >;

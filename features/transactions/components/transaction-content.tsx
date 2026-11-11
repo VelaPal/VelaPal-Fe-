@@ -18,21 +18,13 @@ const initialQuery: TransactionsQuery = {
 export default function TransactionsContent() {
   const [query, setQuery] = useState<TransactionsQuery>(initialQuery);
   const [search, setSearch] = useState("");
-  const [status, setStatus] =
-    useState<TransactionsQuery["status"]>("ALL");
+  const [status, setStatus] = useState<TransactionsQuery["status"]>("ALL");
   const [history, setHistory] = useState<(string | null)[]>([]);
 
-  const {
-    items,
-    nextCursor,
-    error,
-    isLoading,
-    isRefreshing,
-    refresh,
-  } = useTransactions(query);
+  const { items, nextCursor, error, isLoading, isRefreshing, refresh } =
+    useTransactions(query);
 
   const busy = isLoading || isRefreshing;
-  const isMock = process.env.NEXT_PUBLIC_API_MODE === "mock";
 
   function applyFilters(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -80,12 +72,6 @@ export default function TransactionsContent() {
             Review purchases and payments made through VelaPal.
           </p>
         </div>
-
-        {isMock && (
-          <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-600">
-            Demo data
-          </span>
-        )}
       </header>
 
       <form
@@ -121,9 +107,7 @@ export default function TransactionsContent() {
             id="transaction-status"
             value={status}
             onChange={(event) => {
-              setStatus(
-                event.target.value as TransactionsQuery["status"],
-              );
+              setStatus(event.target.value as TransactionsQuery["status"]);
             }}
             className="min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
           >

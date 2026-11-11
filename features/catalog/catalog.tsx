@@ -6,22 +6,16 @@ import { useSession } from "@/features/auth/session";
 import { Panel, Badge, ErrorNotice, useAction } from "@/components/ui/workflow";
 import { formatMoney, formatDate } from "@/lib/format";
 import CheckoutPreview from "./checkout-preview";
-import { useWorkspacePreview } from "@/features/workspace/use-workspace-preview";
 import { moneyFromDollars } from "@/features/workspace/preview-state";
 import { AdminSearch } from "@/features/admin/admin-ui";
 type Quote = Awaited<ReturnType<typeof transactionsService.quote>>;
 export default function Catalog() {
   const { session } = useSession();
   const action = useAction();
-  const preview = useWorkspacePreview();
   const [query, setQuery] = useState("");
   const [selection, setSelection] = useState("");
   const [quantity, setQuantity] = useState("1");
-  const [limit, setLimit] = useState(
-    ((preview.enabled ? preview.state.defaultLimitMinor : 7500) / 100).toFixed(
-      2,
-    ),
-  );
+  const [limit, setLimit] = useState("");
   const [quote, setQuote] = useState<Quote | null>(null);
   const catalog = useSWR(
     session?.activeWorkspace.type === "CUSTOMER"
@@ -62,6 +56,7 @@ export default function Catalog() {
                         : "vp-secondary"
                     }
                     key={v.id}
+                    disabled={action.busy}
                     onClick={() => {
                       setSelection(`${p.id}:${v.id}`);
                       setQuote(null);
@@ -154,7 +149,7 @@ export default function Catalog() {
             <CheckoutPreview
               key={quote.quoteId}
               quote={quote}
-              selection={selection}
+              selection={`${quote.productId}:${quote.variantId}`}
             />
             <p className="text-sm text-amber-800">
               Checkout submission is unavailable: the frozen contract describes

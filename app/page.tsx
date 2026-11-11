@@ -32,21 +32,21 @@ export default function HomePage() {
         </section>
         <section
           className="vp-landing-preview"
-          aria-label="Demo workspace preview"
+          aria-label="VelaPal workspace introduction"
         >
           <div className="vp-landing-preview-kicker">
             <span>
               <i />
               YOUR VELA WORKSPACE
             </span>
-            <span className="vp-public-status">Demo</span>
+            <span className="vp-public-status">VelaPal</span>
           </div>
           <h2>Every next step, in view.</h2>
           <p className="vp-preview-caption">Tracked purchases</p>
           <p className="vp-preview-amount">
-            $134<span>.00</span>
+            ?<span> USD</span>
           </p>
-          <p className="vp-preview-period">October · Vela Market sample</p>
+          <p className="vp-preview-period">Sign in to view your records</p>
           <ol>
             {[
               [
@@ -77,7 +77,7 @@ export default function HomePage() {
             ))}
           </ol>
           <p className="vp-preview-note">
-            No live payment, email, or AI connection in this prototype.
+            Sign in to load your authorized purchases and cases.
           </p>
         </section>
       </main>

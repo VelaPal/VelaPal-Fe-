@@ -1,49 +1,40 @@
-import { apiData } from "./api-client";
-import type {
-  Items,
-  Transaction,
-  TransactionDetail,
-  CatalogProduct,
-} from "./types";
-import {
-  transactionDto,
-  transactionDetailDto,
-  catalogDto,
-  quoteDto,
-} from "./schemas";
-import { z } from "zod";
+import { apiValidated, ApiError } from "@/lib/api";
+import * as dto from "./schemas";
 export const transactionsService = {
-  list: async (): Promise<Items<Transaction>> =>
-    z
-      .object({
-        items: z.array(transactionDto),
-        nextCursor: z.string().nullable().optional(),
-      })
-      .parse(await apiData<unknown>("/transactions")),
-  get: async (id: string): Promise<TransactionDetail> =>
-    transactionDetailDto.parse(
-      await apiData<unknown>(`/transactions/${encodeURIComponent(id)}`),
+  list: (signal?: AbortSignal) =>
+    apiValidated("/transactions", dto.itemsDto(dto.transactionDto), { signal }),
+  get: (id: string, signal?: AbortSignal) =>
+    apiValidated(
+      `/transactions/${encodeURIComponent(id)}`,
+      dto.transactionDetailDto,
+      { signal },
     ),
-  catalog: async (): Promise<{ items: CatalogProduct[] }> =>
-    catalogDto.parse(await apiData<unknown>("/catalog")),
-  quote: async (request: {
+  catalog: (signal?: AbortSignal) =>
+    apiValidated("/catalog", dto.catalogDto, { signal }),
+  quote: (request: {
     productId: string;
     variantId: string;
     quantity: number;
     spendingLimitMinor: number;
   }) =>
-    quoteDto.parse(
-      await apiData<unknown>("/quotes", { method: "POST", body: request }),
-    ),
-  createCheckoutOrder: (request: unknown, key: string) =>
-    apiData<unknown>("/checkout/orders", {
-      method: "POST",
-      body: request,
-      idempotencyKey: key,
-    }),
-  captureCheckoutOrder: (orderId: string, key: string) =>
-    apiData<unknown>(
-      `/checkout/orders/${encodeURIComponent(orderId)}/capture`,
-      { method: "POST", body: {}, idempotencyKey: key },
-    ),
+    apiValidated("/quotes", dto.quoteDto, { method: "POST", body: request }),
+  // ?3.8 names these endpoints but omits the request/approval DTOs. Do not send arbitrary financial payloads.
+  createCheckoutOrder: async (): Promise<never> => {
+    throw new ApiError(
+      0,
+      "INTEGRATION_UNAVAILABLE",
+      "Checkout request and provider approval schemas are not defined in the frozen contract.",
+      "",
+      false,
+    );
+  },
+  captureCheckoutOrder: async (): Promise<never> => {
+    throw new ApiError(
+      0,
+      "INTEGRATION_UNAVAILABLE",
+      "Checkout capture is unavailable until its approval handoff is defined.",
+      "",
+      false,
+    );
+  },
 };

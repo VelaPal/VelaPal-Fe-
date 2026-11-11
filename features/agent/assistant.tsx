@@ -32,7 +32,13 @@ function RunReply({ run }: { run: AgentRun }) {
     <div className="vp-chat-reply">
       <div className="flex flex-wrap gap-2">
         <Badge>{run.status}</Badge>
-        <Badge>{run.modelMode === "live" ? "Live AI" : "Simulated AI"}</Badge>
+        <Badge>
+          {run.modelMode === "live"
+            ? "Live AI"
+            : run.modelMode === "fixture"
+              ? "Fixture AI"
+              : "AI mode not supplied"}
+        </Badge>
         <Badge>PRIVATE</Badge>
       </div>
       {["QUEUED", "RUNNING"].includes(run.status) && (
@@ -260,11 +266,7 @@ export function Assistant({ caseId = null }: { caseId?: string | null }) {
         <p>
           <ShieldCheck size={11} />
           You review and approve every payment or case action.
-          {process.env.NEXT_PUBLIC_API_MODE !== "api" && (
-            <span>
-               Two Perspectives. One Fair Resolution. Powered by AI
-            </span>
-          )}
+          {<span>Two Perspectives. One Fair Resolution. Powered by AI</span>}
         </p>
       </div>
     </section>

@@ -1,12 +1,16 @@
-import { apiData } from "./api-client";
-import type { Operation } from "./types";
+import * as dto from "./schemas";
+import { apiValidated } from "@/lib/api";
 export const operationsService = {
   get: (operationId: string) =>
-    apiData<Operation>(`/operations/${encodeURIComponent(operationId)}`),
+    apiValidated(
+      `/operations/${encodeURIComponent(operationId)}`,
+      dto.operationDto,
+    ),
   /** Reconcile existing operation ID only; never create a new financial intent. */
   reconcile: (operationId: string, key: string) =>
-    apiData<Operation>(
+    apiValidated(
       `/operations/${encodeURIComponent(operationId)}/reconcile`,
+      dto.operationDto,
       { method: "POST", idempotencyKey: key, body: {} },
     ),
 };

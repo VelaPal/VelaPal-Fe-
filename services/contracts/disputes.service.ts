@@ -1,20 +1,16 @@
-import { apiData, workspaceRequestSignal } from "./api-client";
+import * as dto from "./schemas";
+import { apiValidated, uploadToHandle } from "@/lib/api";
 import type {
-  Audience,
   ConsentIntent,
-  DisputeCase,
   DisputeCategory,
-  BoundDisputeDetail,
-  BoundEvidenceSource,
-  Items,
   SourceRef,
   SettlementRoute,
 } from "./types";
 const id = encodeURIComponent;
 export const disputesService = {
-  list: () => apiData<Items<DisputeCase>>("/disputes"),
+  list: () => apiValidated("/disputes", dto.itemsDto(dto.caseListItemDto)),
   get: (caseId: string) =>
-    apiData<BoundDisputeDetail>(`/disputes/${id(caseId)}`),
+    apiValidated(`/disputes/${id(caseId)}`, dto.disputeDetailDto),
   create: (
     body: {
       transactionId: string | null;
@@ -25,13 +21,11 @@ export const disputesService = {
     },
     key: string,
   ) =>
-    apiData<{
-      caseId: string;
-      caseVersion: number;
-      controlVersion: number;
-      privateContextVersion: number;
-      accessRevision: number;
-    }>("/disputes", { method: "POST", body, idempotencyKey: key }),
+    apiValidated("/disputes", dto.caseCreatedDto, {
+      method: "POST",
+      body,
+      idempotencyKey: key,
+    }),
   message: (
     caseId: string,
     body: {
@@ -41,11 +35,7 @@ export const disputesService = {
     },
     version: number,
   ) =>
-    apiData<{
-      messageId: string;
-      caseVersion: number;
-      privateContextVersion: number;
-    }>(`/disputes/${id(caseId)}/messages`, {
+    apiValidated(`/disputes/${id(caseId)}/messages`, dto.messageCreatedDto, {
       method: "POST",
       body,
       ifMatch: version,
@@ -54,40 +44,31 @@ export const disputesService = {
     caseId: string,
     body: { mime: string; byteCount: number; originalName: string },
   ) =>
-    apiData<{
-      sourceId: string;
-      uploadId: string;
-      sourceVersion: number;
-      audience: Audience;
-      scanState: string;
-      uploadHandle: { method: "PUT"; url: string; expiresInSeconds: number };
-    }>(`/disputes/${id(caseId)}/sources/upload-intents`, {
-      method: "POST",
-      body,
-    }),
-  /** Upload bytes to short-lived handle URL with a direct PUT, then call finalize. Never send browser CSRF or session cookie to unrelated object storage origins. */
-  async uploadBytes(handle: { method: "PUT"; url: string }, blob: Blob) {
-    const response = await fetch(handle.url, {
-      method: "PUT",
-      body: blob,
-      credentials: "omit",
-      signal: workspaceRequestSignal(),
-    });
-    if (!response.ok) throw new Error(`Upload failed: ${response.status}`);
-  },
+    apiValidated(
+      `/disputes/${id(caseId)}/sources/upload-intents`,
+      dto.uploadIntentDto,
+      {
+        method: "POST",
+        body,
+      },
+    ),
+  /** Backend-issued storage handle only; no cookies or CSRF leave the public API. */
+  uploadBytes: uploadToHandle,
   finalize: (
     caseId: string,
     sourceId: string,
     uploadId: string,
     sourceVersion: number,
   ) =>
-    apiData<unknown>(
+    apiValidated(
       `/disputes/${id(caseId)}/sources/${id(sourceId)}/finalize`,
+      dto.finalizedSourceDto,
       { method: "POST", body: { uploadId }, ifMatch: sourceVersion },
     ),
   getSource: (caseId: string, sourceId: string) =>
-    apiData<BoundEvidenceSource>(
+    apiValidated(
       `/disputes/${id(caseId)}/sources/${id(sourceId)}`,
+      dto.sourceDto,
     ),
   shareSource: (
     caseId: string,
@@ -96,45 +77,44 @@ export const disputesService = {
     audience: "CASE_SHARED" | "PROVIDER_SHARED",
     paramsHash: string,
   ) =>
-    apiData<{
-      sourceVersion: number;
-      caseVersion: number;
-      accessRevision: number;
-    }>(`/disputes/${id(caseId)}/sources/${id(sourceId)}/share`, {
-      method: "POST",
-      ifMatch: sourceVersion,
-      body: {
-        audience,
-        consentIntent: "SHARE_SOURCE" satisfies ConsentIntent,
-        paramsHash,
+    apiValidated(
+      `/disputes/${id(caseId)}/sources/${id(sourceId)}/share`,
+      dto.sourceChangeDto,
+      {
+        method: "POST",
+        ifMatch: sourceVersion,
+        body: {
+          audience,
+          consentIntent: "SHARE_SOURCE" satisfies ConsentIntent,
+          paramsHash,
+        },
       },
-    }),
+    ),
   revokeSource: (
     caseId: string,
     sourceId: string,
     sourceVersion: number,
     reason: string,
   ) =>
-    apiData<{
-      sourceVersion: number;
-      caseVersion: number;
-      accessRevision: number;
-    }>(`/disputes/${id(caseId)}/sources/${id(sourceId)}/revoke`, {
-      method: "POST",
-      ifMatch: sourceVersion,
-      body: { reason },
-    }),
+    apiValidated(
+      `/disputes/${id(caseId)}/sources/${id(sourceId)}/revoke`,
+      dto.sourceChangeDto,
+      {
+        method: "POST",
+        ifMatch: sourceVersion,
+        body: { reason },
+      },
+    ),
   assess: (caseId: string, caseVersion: number) =>
-    apiData<{
-      runId: string;
-      caseId: string;
-      inputVersion: number;
-      status: string;
-    }>(`/disputes/${id(caseId)}/assessments`, {
-      method: "POST",
-      body: {},
-      ifMatch: caseVersion,
-    }),
+    apiValidated(
+      `/disputes/${id(caseId)}/assessments`,
+      dto.assessmentQueuedDto,
+      {
+        method: "POST",
+        body: {},
+        ifMatch: caseVersion,
+      },
+    ),
   mediationConsent: (
     caseId: string,
     caseVersion: number,
@@ -142,16 +122,20 @@ export const disputesService = {
     paramsHash: string,
     decision: "APPROVED" | "REJECTED",
   ) =>
-    apiData<unknown>(`/disputes/${id(caseId)}/mediation-consents`, {
-      method: "POST",
-      ifMatch: caseVersion,
-      body: {
-        consentIntent: "CONTINUE_MEDIATION",
-        assessmentRunId,
-        paramsHash,
-        decision,
+    apiValidated(
+      `/disputes/${id(caseId)}/mediation-consents`,
+      dto.mediationConsentDto,
+      {
+        method: "POST",
+        ifMatch: caseVersion,
+        body: {
+          consentIntent: "CONTINUE_MEDIATION",
+          assessmentRunId,
+          paramsHash,
+          decision,
+        },
       },
-    }),
+    ),
   propose: (
     caseId: string,
     caseVersion: number,
@@ -163,13 +147,7 @@ export const disputesService = {
       expiresInMinutes: number;
     },
   ) =>
-    apiData<{
-      proposalId: string;
-      proposalVersion: number;
-      actionRequestId: string;
-      caseVersion: number;
-      paramsHash: string;
-    }>(`/disputes/${id(caseId)}/proposals`, {
+    apiValidated(`/disputes/${id(caseId)}/proposals`, dto.proposalCreatedDto, {
       method: "POST",
       ifMatch: caseVersion,
       body,
@@ -182,7 +160,7 @@ export const disputesService = {
       newSourceRefs: SourceRef[];
     },
   ) =>
-    apiData<unknown>(`/disputes/${id(caseId)}/reviews`, {
+    apiValidated(`/disputes/${id(caseId)}/reviews`, dto.reviewCreatedDto, {
       method: "POST",
       body,
     }),
@@ -197,21 +175,29 @@ export const disputesService = {
       stepUpId: string | null;
     },
   ) =>
-    apiData<unknown>(`/action-requests/${id(actionRequestId)}/consents`, {
-      method: "POST",
-      ifMatch: proposalVersion,
-      body,
-    }),
+    apiValidated(
+      `/action-requests/${id(actionRequestId)}/consents`,
+      dto.consentDto,
+      {
+        method: "POST",
+        ifMatch: proposalVersion,
+        body,
+      },
+    ),
   execute: (
     actionRequestId: string,
     caseVersion: number,
     paramsHash: string,
     key: string,
   ) =>
-    apiData<unknown>(`/action-requests/${id(actionRequestId)}/execute`, {
-      method: "POST",
-      ifMatch: caseVersion,
-      idempotencyKey: key,
-      body: { paramsHash },
-    }),
+    apiValidated(
+      `/action-requests/${id(actionRequestId)}/execute`,
+      dto.executionDto,
+      {
+        method: "POST",
+        ifMatch: caseVersion,
+        idempotencyKey: key,
+        body: { paramsHash },
+      },
+    ),
 };

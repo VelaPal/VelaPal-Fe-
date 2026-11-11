@@ -4,7 +4,7 @@ import fs from "node:fs";
 import ts from "typescript";
 // Execute the actual frontend client with a controlled Fetch boundary.
 const source = fs.readFileSync(
-  new URL("../services/contracts/api-client.ts", import.meta.url),
+  new URL("../lib/api.ts", import.meta.url),
   "utf8",
 );
 const compiled = ts.transpileModule(source, {
@@ -96,6 +96,7 @@ test("workspace change aborts in-flight requests; empty 204 and malformed envelo
     const pending = client.apiData("/transactions");
     client.cancelWorkspaceRequests();
     await assert.rejects(pending, (e) => e.name === "AbortError");
+    client.setCsrfToken("csrf_test");
     globalThis.fetch = async () => new Response(null, { status: 204 });
     assert.equal(
       await client.apiData("/auth/logout", { method: "POST" }),
@@ -141,6 +142,156 @@ test("a response cancelled during JSON parsing cannot populate the next workspac
     });
     await assert.rejects(pending, (e) => e.name === "AbortError");
   } finally {
+    globalThis.fetch = original;
+  }
+});
+
+test("base URL normalization supports same-origin and direct Express without duplicate prefixes", () => {
+  assert.equal(client.resolveApiBaseUrl("/api/v1/"), "/api/v1");
+  assert.equal(
+    client.resolveApiBaseUrl("http://localhost:4000"),
+    "http://localhost:4000/api/v1",
+  );
+  assert.equal(
+    client.resolveApiBaseUrl("https://api.example.test/api/v1/"),
+    "https://api.example.test/api/v1",
+  );
+  for (const value of [
+    "http://user:secret@example.test",
+    "http://example.test/internal/v1",
+    "//example.test",
+    "https://example.test?key=x",
+  ])
+    assert.throws(() => client.resolveApiBaseUrl(value));
+});
+test("cancellation, bounded timeouts and network failures never use a data fallback or automatic retry", async () => {
+  const original = globalThis.fetch;
+  let calls = 0;
+  try {
+    globalThis.fetch = async () => {
+      calls++;
+      throw new TypeError("offline");
+    };
+    await assert.rejects(
+      client.apiData("/transactions"),
+      (e) => e.code === "NETWORK_ERROR",
+    );
+    assert.equal(calls, 1);
+    globalThis.fetch = (_url, { signal }) =>
+      new Promise((_resolve, reject) =>
+        signal.addEventListener("abort", () => reject(signal.reason), {
+          once: true,
+        }),
+      );
+    const controller = new AbortController();
+    const pending = client.apiData("/transactions", {
+      signal: controller.signal,
+    });
+    controller.abort();
+    await assert.rejects(pending, (e) => e.name === "AbortError");
+    // Keep the event loop alive because AbortSignal.timeout uses an unref'd timer.
+    const keepAlive = setTimeout(() => {}, 1000);
+    try {
+      await assert.rejects(
+        client.apiData("/transactions", {
+          signal: new AbortController().signal,
+          timeoutMs: 5,
+        }),
+        (e) => e.code === "REQUEST_TIMEOUT",
+      );
+    } finally {
+      clearTimeout(keepAlive);
+    }
+  } finally {
+    globalThis.fetch = original;
+    client.cancelWorkspaceRequests();
+  }
+});
+test("public client rejects traversal, internal credentials and invalid versions before sending a request", async () => {
+  const original = globalThis.fetch;
+  let calls = 0;
+  globalThis.fetch = async () => {
+    calls++;
+    throw Error("Unexpected fetch");
+  };
+  try {
+    for (const path of [
+      "https://other.test",
+      "//other.test",
+      "/internal/v1/case-runs",
+      "/api/v1/auth/session",
+      "/../internal/v1",
+      "/%2e%2e/internal/v1",
+      "/x\\..\\internal/v1",
+      "/webhooks/paypal",
+    ])
+      await assert.rejects(
+        client.apiData(path),
+        (e) => e.code === "INVALID_PUBLIC_PATH",
+      );
+    await assert.rejects(
+      client.apiData("/disputes", { ifMatch: 1.5 }),
+      (e) => e.code === "INVALID_VERSION",
+    );
+    assert.equal(calls, 0);
+  } finally {
+    globalThis.fetch = original;
+  }
+});
+test("backend-issued evidence byte upload never forwards API cookies or CSRF", async () => {
+  const original = globalThis.fetch;
+  let options;
+  globalThis.fetch = async (_url, request) => {
+    options = request;
+    return new Response(null, { status: 200 });
+  };
+  try {
+    client.setCsrfToken("csrf_test");
+    await client.uploadToHandle(
+      {
+        method: "PUT",
+        url: "https://storage.example.test/quarantine/file?sig=short-lived",
+      },
+      new Blob(["evidence"]),
+    );
+    assert.equal(options.credentials, "omit");
+    assert.equal(options.headers, undefined);
+    assert.equal(options.referrerPolicy, "no-referrer");
+    await assert.rejects(
+      client.uploadToHandle(
+        {
+          method: "PUT",
+          url: "https://storage.example.test/internal/v1/context",
+        },
+        new Blob(["x"]),
+      ),
+      (e) => e.code === "INVALID_UPLOAD_HANDLE",
+    );
+  } finally {
+    globalThis.fetch = original;
+  }
+});
+
+test("a timeout while reading the response body remains a structured API failure", async () => {
+  const original = globalThis.fetch,
+    keepAlive = setTimeout(() => {}, 1000);
+  try {
+    globalThis.fetch = async (_url, { signal }) => ({
+      status: 200,
+      ok: true,
+      json: () =>
+        new Promise((_resolve, reject) =>
+          signal.addEventListener("abort", () => reject(signal.reason), {
+            once: true,
+          }),
+        ),
+    });
+    await assert.rejects(
+      client.apiData("/transactions", { timeoutMs: 5 }),
+      (e) => e instanceof client.ApiError && e.code === "REQUEST_TIMEOUT",
+    );
+  } finally {
+    clearTimeout(keepAlive);
     globalThis.fetch = original;
   }
 });

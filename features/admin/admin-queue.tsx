@@ -87,11 +87,16 @@ export function AdminQueue({ overview = false }: { overview?: boolean }) {
         }
       />
       <ErrorNotice error={queue.error} />
+      <ErrorNotice error={approvals.error} />
       {queue.isLoading && <p role="status">Loading queue...</p>}
-      {overview && enabled ? (
+      {overview ? (
         <>
           <AdminOverview
-            caseCount={all.filter((c) => !closed(c.stage)).length}
+            caseCount={
+              queue.data
+                ? all.filter((c) => !closed(c.stage)).length
+                : undefined
+            }
             reviewCaseId={
               all.find((c) => c.control === "WAITING_ADMIN")?.caseId ??
               all[0]?.caseId

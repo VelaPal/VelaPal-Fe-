@@ -1,25 +1,19 @@
-import { apiData, clearCsrfToken, setCsrfToken } from "./api-client";
-import type {
-  AuthenticatedSession,
-  LoginResponse,
-  MfaChallenge,
-  StepUpVerified,
-  Workspace,
-} from "./types";
+import * as dto from "./schemas";
+import { apiData, apiValidated, clearCsrfToken, setCsrfToken } from "@/lib/api";
+import type { AuthenticatedSession, LoginResponse } from "./types";
 const isAuthenticated = (r: LoginResponse): r is AuthenticatedSession =>
   r.status === "AUTHENTICATED";
 export const authService = {
   async login(email: string, password: string) {
-    const r = await apiData<LoginResponse>("/auth/login", {
+    const r = await apiValidated("/auth/login", dto.loginDto, {
       method: "POST",
       body: { email, password },
     });
     if (isAuthenticated(r)) setCsrfToken(r.csrfToken);
     return r;
   },
-  async restoreSession() {
-    const s = await apiData<AuthenticatedSession>("/auth/session");
-    setCsrfToken(s.csrfToken);
+  async restoreSession(signal?: AbortSignal) {
+    const s = await apiValidated("/auth/session", dto.sessionDto, { signal });
     return s;
   },
   async logout() {
@@ -34,27 +28,27 @@ export const authService = {
       | "MERCHANT_EXECUTION",
     targetId: string,
   ) {
-    return apiData<Omit<MfaChallenge, "status">>("/auth/mfa/challenges", {
+    return apiValidated("/auth/mfa/challenges", dto.stepUpChallengeDto, {
       method: "POST",
       body: { purpose, targetId },
     });
   },
   async verifyMfa(challengeId: string, code: string) {
-    const data = await apiData<AuthenticatedSession | StepUpVerified>(
-      "/auth/mfa/verify",
-      { method: "POST", body: { challengeId, code } },
-    );
+    const data = await apiValidated("/auth/mfa/verify", dto.mfaDto, {
+      method: "POST",
+      body: { challengeId, code },
+    });
     if (data.status === "AUTHENTICATED") setCsrfToken(data.csrfToken);
     return data;
   },
   listWorkspaces() {
-    return apiData<{ items: Workspace[] }>("/me/workspaces");
+    return apiValidated("/me/workspaces", dto.itemsDto(dto.workspaceDto));
   },
   async switchWorkspace(workspaceId: string, stepUpId: string | null = null) {
-    const r = await apiData<{ activeWorkspace: Workspace; csrfToken: string }>(
-      "/session/workspace",
-      { method: "POST", body: { workspaceId, stepUpId } },
-    );
+    const r = await apiValidated("/session/workspace", dto.switchWorkspaceDto, {
+      method: "POST",
+      body: { workspaceId, stepUpId },
+    });
     setCsrfToken(r.csrfToken);
     // UI MUST cancel old workspace requests and invalidate all scoped query caches.
     return r;

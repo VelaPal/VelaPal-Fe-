@@ -5,11 +5,9 @@ import { scripts } from "./package.json";
 const nextConfig: NextConfig = {
   async rewrites() {
     const upstream = resolveApiUpstream({
-      mode: process.env.NEXT_PUBLIC_API_MODE,
       upstream: process.env.API_UPSTREAM,
       frontendPort: /--port\s+(\d+)/.exec(scripts.dev)?.[1],
     });
-    if (!upstream) return [];
     return {
       beforeFiles: [
         { source: "/api/v1/:path*", destination: `${upstream}/api/v1/:path*` },

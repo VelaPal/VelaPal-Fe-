@@ -15,12 +15,12 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { useSession } from "@/features/auth/session";
+import { transactionsService } from "@/services/contracts/transactions.service";
 import { adminService } from "@/services/contracts/admin.service";
 import { ErrorNotice, Panel, useAction } from "@/components/ui/workflow";
 import StatCard from "@/components/ui/stat-card";
 import { formatDate, formatMoney } from "@/lib/format";
 import {
-  previewTransactions,
   staffPermissions,
   type PreviewAction,
   type PreviewMerchant,
@@ -298,10 +298,25 @@ export function AdminMerchants() {
   );
 }
 export function AdminTransactions() {
-  const { enabled } = useAdminPreview();
+  const { session } = useSession();
+  const data = useSWR(
+    session?.activeWorkspace.type === "ADMIN"
+      ? [session.activeWorkspace.workspaceId, "admin-transactions"]
+      : null,
+    () => transactionsService.list(),
+  );
+  const enabled = !!data.data;
+  const transactions = (data.data?.items ?? []).map((t) => ({
+    id: t.id,
+    product: t.orderId,
+    merchant: t.merchantName,
+    status: t.paymentStatus,
+    amountMinor: t.amountMinor,
+    verifiedAt: t.verifiedAt,
+  }));
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("All");
-  const rows = previewTransactions.filter(
+  const rows = transactions.filter(
     (t) =>
       (status === "All" || t.status === status) &&
       `${t.id} ${t.product} ${t.merchant}`
@@ -316,10 +331,10 @@ export function AdminTransactions() {
         action={
           enabled && (
             <ExportButton
-              label="Export demo"
+              label="Export CSV"
               onClick={() =>
                 exportCsv(
-                  "velapal-demo-transactions.csv",
+                  "velapal-transactions.csv",
                   [
                     "Reference",
                     "Product",
@@ -334,7 +349,7 @@ export function AdminTransactions() {
                     t.merchant,
                     t.status,
                     (t.amountMinor / 100).toFixed(2),
-                    "Seeded fixture; no live provider event",
+                    t.verifiedAt ?? "Not verified",
                   ]),
                 )
               }
@@ -342,10 +357,12 @@ export function AdminTransactions() {
           )
         }
       />
-      {!enabled ? (
-        <PreviewUnavailable />
-      ) : (
+      {
         <>
+          <ErrorNotice error={data.error} />
+          {data.isLoading && (
+            <p role="status">Loading authorized transactions...</p>
+          )}
           <div className="vp-admin-filters">
             <AdminSearch
               value={query}
@@ -358,7 +375,16 @@ export function AdminTransactions() {
               value={status}
               onChange={(e) => setStatus(e.target.value)}
             >
-              {["All", "Paid", "Refunded", "Pending"].map((s) => (
+              {[
+                "All",
+                "APPROVAL_PENDING",
+                "UNCONFIRMED",
+                "PAID",
+                "PARTIALLY_REFUNDED",
+                "REFUNDED",
+                "FAILED",
+                "UNKNOWN",
+              ].map((s) => (
                 <option key={s}>{s}</option>
               ))}
             </select>
@@ -384,7 +410,8 @@ export function AdminTransactions() {
                 </td>
                 <td>{formatMoney(t.amountMinor)}</td>
                 <td>
-                  Seeded fixture<small>No live provider event</small>
+                  {t.verifiedAt ?? "Not verified"}
+                  <small>API verification timestamp</small>
                 </td>
               </tr>
             ))}
@@ -398,11 +425,11 @@ export function AdminTransactions() {
           </AdminTable>
           <AdminNotice>
             In production, signed webhooks and provider reads drive settlement
-            state. These sample records are not a PayPal balance, payout report,
-            or completed refund verification.
+            state. These transaction records are not a PayPal balance, payout
+            report, or completed refund verification.
           </AdminNotice>
         </>
-      )}
+      }
     </div>
   );
 }
@@ -770,8 +797,8 @@ export function AdminSettings() {
           <dl className="vp-admin-review">
             {[
               ["Admin MFA", "Required"],
-              ["Admin idle timeout", "15 minutes · proposed"],
-              ["Password reset token", "15 minutes · single use"],
+              ["Admin idle timeout", "Not supplied"],
+              ["Password reset token", "Not supplied"],
               ["Merchant approval", "Manual review + reason"],
               ["Financial executor", "Consent + capability + reconciliation"],
             ].map(([k, v]) => (
@@ -798,12 +825,7 @@ export function AdminSettings() {
                 ? "Cookie-authenticated mock session"
                 : "Current signed-in session",
             ],
-            [
-              "Other sample session",
-              state.otherSessionRevoked
-                ? "Revoked · local fixture"
-                : "Mobile browser · fixture",
-            ],
+            ["Other sessions", "Unavailable"],
           ].map(([k, v]) => (
             <div key={k}>
               <dt>{k}</dt>
@@ -954,7 +976,7 @@ export function AdminOverview({
   caseCount,
   reviewCaseId,
 }: {
-  caseCount: number;
+  caseCount?: number;
   reviewCaseId?: string;
 }) {
   const { state } = useAdminPreview();
@@ -964,33 +986,31 @@ export function AdminOverview({
       <div className="vp-metrics-grid">
         <StatCard
           label="Active accounts"
-          value={String(
-            state.users.filter((u) => u.status === "Active").length,
-          ).padStart(2, "0")}
-          description="Seeded and demo registrations"
+          value="Unavailable"
+          description="Account endpoint not defined"
           icon={Users}
           href="/workspace/admin/users"
         />
         <StatCard
           label="Merchant reviews"
-          value={String(
-            state.merchants.filter((m) => m.status === "Pending").length,
-          ).padStart(2, "0")}
-          description="Applications awaiting review"
+          value="Unavailable"
+          description="Merchant endpoint not defined"
           icon={Store}
           href="/workspace/admin/merchants"
         />
         <StatCard
           label="Open disputes"
-          value={String(caseCount).padStart(2, "0")}
+          value={
+            caseCount === undefined ? "?" : String(caseCount).padStart(2, "0")
+          }
           description="Shared case monitoring"
           icon={Scale}
           href="/workspace/admin"
         />
         <StatCard
           label="AI service"
-          value={state.aiEnabled ? "Enabled" : "Paused"}
-          description="Demo control, no live model"
+          value="Unavailable"
+          description="Monitoring endpoint not defined"
           icon={Activity}
           href="/workspace/admin/ai"
         />
@@ -1070,7 +1090,6 @@ export function AdminOverview({
 }
 export function AdminAuditPage() {
   const { session } = useSession();
-  const { state, enabled } = useAdminPreview();
   const [query, setQuery] = useState("");
   const [role, setRole] = useState("All");
   const events = useSWR(
@@ -1081,12 +1100,11 @@ export function AdminAuditPage() {
     { refreshInterval: 5000 },
   );
   const rows = [
-    ...(enabled ? state.audit : []),
     ...(events.data?.items ?? []).map((e) => ({
       id: e.auditId,
       at: e.createdAt,
       actor: e.actorId,
-      role: e.actorId.startsWith("usr_admin") ? "admin" : "system",
+      role: "Not supplied",
       action: e.eventName,
       target: e.targetId,
       reason: e.reason,
@@ -1187,22 +1205,22 @@ export function AdminAuditPage() {
         )}
       </AdminTable>
       <AdminNotice>
-        The local demo log can be reset. Production requires append-only
-        records, restricted access, and a defined retention policy.
+        Audit events are provided by the API. Logs are append-only and subject
+        to backend access controls.
       </AdminNotice>
     </div>
   );
 }
 export function RecentAdminPreviewActivity() {
-  const { state, enabled } = useAdminPreview();
   const { session } = useSession();
   const events = useSWR(
-    enabled ? [session?.activeWorkspace.workspaceId, "audit"] : null,
+    session?.activeWorkspace.type === "ADMIN"
+      ? [session.activeWorkspace.workspaceId, "audit"]
+      : null,
     () => adminService.auditEvents(),
     { refreshInterval: 5000 },
   );
   const rows = [
-    ...state.audit,
     ...(events.data?.items ?? []).map((e) => ({
       id: e.auditId,
       at: e.createdAt,
@@ -1213,7 +1231,6 @@ export function RecentAdminPreviewActivity() {
   ]
     .sort((a, b) => b.at.localeCompare(a.at))
     .slice(0, 4);
-  if (!enabled) return null;
   return (
     <section className="vp-panel vp-admin-recent-panel">
       <div className="vp-section-heading">
@@ -1224,6 +1241,10 @@ export function RecentAdminPreviewActivity() {
         </Link>
       </div>
       <ErrorNotice error={events.error} />
+      {events.isLoading && <p role="status">Loading audit events...</p>}
+      {events.data && !rows.length && (
+        <p className="vp-empty-note">No audit events returned.</p>
+      )}
       <ol className="vp-admin-recent-activity">
         {rows.map((e) => (
           <li key={e.id}>

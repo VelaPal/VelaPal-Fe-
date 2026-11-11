@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 import { useState } from "react";
 import { AdminDialog, AdminNotice } from "@/features/admin/admin-ui";
 import { formatMoney, formatDate } from "@/lib/format";
@@ -19,9 +19,7 @@ export default function CheckoutPreview({
 }) {
   const [open, setOpen] = useState(false);
   const [consent, setConsent] = useState(false);
-  const [step, setStep] = useState<
-    "REVIEW" | "APPROVAL_PENDING" | "UNAVAILABLE" | "CANCELLED"
-  >("REVIEW");
+  const [step, setStep] = useState<"REVIEW" | "UNAVAILABLE">("REVIEW");
   const [error, setError] = useState("");
   return (
     <>
@@ -35,7 +33,7 @@ export default function CheckoutPreview({
           setError("");
         }}
       >
-        Review checkout preview
+        Review checkout
       </button>
       {open && (
         <AdminDialog
@@ -68,8 +66,8 @@ export default function CheckoutPreview({
                   checked={consent}
                   onChange={(e) => setConsent(e.target.checked)}
                 />
-                I reviewed this exact item, quote, amount and currency. Preview
-                the next approval step.
+                I reviewed this exact item, quote, amount and currency. Checkout
+                is currently unavailable.
               </label>
               <div className="vp-intake-actions">
                 <button className="vp-secondary" onClick={() => setOpen(false)}>
@@ -77,7 +75,7 @@ export default function CheckoutPreview({
                 </button>
                 <button
                   className="vp-button"
-                  disabled={!consent}
+                  disabled
                   onClick={() => {
                     if (Date.parse(quote.expiresAt) <= Date.now()) {
                       setError(
@@ -85,38 +83,19 @@ export default function CheckoutPreview({
                       );
                       return;
                     }
-                    setStep("APPROVAL_PENDING");
+                    setStep("UNAVAILABLE");
                   }}
                 >
-                  Preview provider approval
+                  Continue to provider approval
                 </button>
               </div>
             </>
           ) : (
             <>
               <p role="status" className="vp-admin-dialog-copy">
-                {step === "APPROVAL_PENDING"
-                  ? "Provider approval required · preview only. No PayPal page was opened."
-                  : step === "CANCELLED"
-                    ? "Approval preview cancelled. Nothing was charged."
-                    : "Provider handoff unavailable. No capture was requested and no payment is verified."}
+                Provider handoff unavailable. No capture was requested and no
+                payment is verified.
               </p>
-              {step === "APPROVAL_PENDING" && (
-                <div className="vp-settings-actions">
-                  <button
-                    className="vp-secondary"
-                    onClick={() => setStep("CANCELLED")}
-                  >
-                    Cancel approval preview
-                  </button>
-                  <button
-                    className="vp-button"
-                    onClick={() => setStep("UNAVAILABLE")}
-                  >
-                    Check provider availability
-                  </button>
-                </div>
-              )}
             </>
           )}
           {error && (

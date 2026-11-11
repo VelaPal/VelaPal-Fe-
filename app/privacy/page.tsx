@@ -4,18 +4,17 @@ export default function Privacy() {
   return (
     <PublicShell>
       <main className="vp-public-notice">
-        <p className="vp-eyebrow">PROTOTYPE NOTICE</p>
-        <h1>Demo privacy notice</h1>
+        <p className="vp-eyebrow">PRIVACY</p>
+        <h1>Privacy notice</h1>
         <p>
-          Use fictional names and email addresses. Registration preview details
-          are stored in this browser tab&apos;s session storage. Passwords are
-          validated and discarded; they are never stored or sent by this
-          registration preview.
+          Sign-in credentials are sent to the VelaPal API. Sessions use an
+          HttpOnly cookie; session tokens are not stored in browser storage.
+          Registration and email verification are currently unavailable.
         </p>
         <p>
-          Closing the tab clears its registration preview. Signed-in demo
-          sessions use the existing mock API and its session cookies. Do not
-          upload sensitive documents to the prototype.
+          Evidence uploads start private and require backend access checks.
+          Review the audience before sharing. Closing a browser tab does not
+          sign you out; use Sign out to revoke the server session.
         </p>
         <Link className="vp-link" href="/register">
           Back to create account

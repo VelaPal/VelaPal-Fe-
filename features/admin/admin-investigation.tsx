@@ -145,7 +145,8 @@ export function AdminInvestigation({ caseId }: { caseId: string }) {
           </p>
           <h1 className="vp-case-category-title">
             {d
-              ? d.case.category.replaceAll("_", " ").toLowerCase()
+              ? (d.case.category?.replaceAll("_", " ").toLowerCase() ??
+                "Not supplied")
               : "Case investigation"}
           </h1>
           <p className="vp-admin-description">
@@ -323,7 +324,7 @@ export function AdminInvestigation({ caseId }: { caseId: string }) {
                                 {source.ownerParty} &middot; {source.scanState}
                               </small>
                             </div>
-                            <Badge>{source.audience}</Badge>
+                            <Badge>CASE_SHARED</Badge>
                           </li>
                         ))}
                       </ul>
@@ -529,7 +530,8 @@ export function AdminInvestigation({ caseId }: { caseId: string }) {
                     ["Initiated by", d.case.initiatorParty],
                     [
                       "Category",
-                      d.case.category.replaceAll("_", " ").toLowerCase(),
+                      d.case.category?.replaceAll("_", " ").toLowerCase() ??
+                        "Not supplied",
                     ],
                     [
                       "Assigned reviewer",

@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { ArrowRight, Download, Search, ShieldCheck, X } from "lucide-react";
 import { useAdminPreview } from "./use-admin-preview";
@@ -93,8 +93,8 @@ export function AdminBadge({ children }: { children: string }) {
 export function PreviewUnavailable() {
   return (
     <AdminNotice>
-      This frontend preview uses fictional records in mock mode. Live
-      administration will use the confirmed backend integration.
+      This feature is unavailable: its public endpoint is not defined in the
+      VelaPal API contract.
     </AdminNotice>
   );
 }

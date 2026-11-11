@@ -14,28 +14,25 @@ const code = ts.transpileModule(
 const { resolveApiUpstream } = await import(
   `data:text/javascript;base64,${Buffer.from(code).toString("base64")}`
 );
-test("mock mode is embedded without an upstream and API mode rejects a frontend proxy loop", () => {
+test("Express is the default upstream and proxy loops are rejected", () => {
+  assert.equal(resolveApiUpstream({}), "http://localhost:4000");
+  for (const upstream of [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://[::1]:3000",
+  ]) {
+    assert.throws(() => resolveApiUpstream({ upstream }), /cannot point back/);
+  }
+  for (const upstream of [
+    "ftp://localhost:4000",
+    "http://name:password@localhost:4000",
+    "http://localhost:4000/internal/v1",
+    "http://localhost:4000?token=x",
+  ]) {
+    assert.throws(() => resolveApiUpstream({ upstream }));
+  }
   assert.equal(
-    resolveApiUpstream({ mode: "mock", upstream: "http://localhost:3000" }),
-    null,
-  );
-  assert.equal(resolveApiUpstream({ mode: "mock" }), null);
-  assert.throws(
-    () =>
-      resolveApiUpstream({ mode: "api", upstream: "http://localhost:3000" }),
-    /cannot point back/,
-  );
-  assert.throws(
-    () =>
-      resolveApiUpstream({ mode: "api", upstream: "http://127.0.0.1:3000" }),
-    /cannot point back/,
-  );
-  assert.throws(() => resolveApiUpstream({ mode: "api" }), /Set API_UPSTREAM/);
-  assert.throws(() =>
-    resolveApiUpstream({ mode: "api", upstream: "ftp://localhost:4000" }),
-  );
-  assert.equal(
-    resolveApiUpstream({ mode: "api", upstream: "http://127.0.0.1:4000/" }),
+    resolveApiUpstream({ upstream: "http://127.0.0.1:4000/" }),
     "http://127.0.0.1:4000",
   );
 });

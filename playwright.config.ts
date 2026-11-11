@@ -17,12 +17,8 @@ export default defineConfig({
     screenshot: "only-on-failure",
   },
   webServer: {
-    command: `npm run start -- --port ${webPort}`,
+    command: `node node_modules/next/dist/bin/next start --port ${webPort}`,
     url: `${baseURL}/login`,
     reuseExistingServer: !process.env.CI,
-    env: {
-      NEXT_PUBLIC_API_MODE: "mock",
-      MOCK_ALLOWED_ORIGINS: `${baseURL},http://127.0.0.1:${webPort},http://[::1]:${webPort}`,
-    },
   },
 });

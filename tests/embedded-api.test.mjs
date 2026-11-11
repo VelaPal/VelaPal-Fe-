@@ -1,10 +1,10 @@
-﻿import test from "node:test";
+import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import ts from "typescript";
 let code = ts.transpileModule(
   fs.readFileSync(
-    new URL("../mock-api/embedded-handler.ts", import.meta.url),
+    new URL("./fixtures/mock-api/embedded-handler.ts", import.meta.url),
     "utf8",
   ),
   {
@@ -16,7 +16,7 @@ let code = ts.transpileModule(
 ).outputText;
 code = code.replace(
   /from ['"]\.\/server\.mjs['"]/,
-  `from '${new URL("../mock-api/server.mjs", import.meta.url).href}'`,
+  `from '${new URL("./fixtures/mock-api/server.mjs", import.meta.url).href}'`,
 );
 const { handleEmbeddedMock } = await import(
   `data:text/javascript;base64,${Buffer.from(code).toString("base64")}`

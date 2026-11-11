@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { once } from "node:events";
-import { createMockServer } from "../mock-api/server.mjs";
+import { createMockServer } from "./fixtures/mock-api/server.mjs";
 
 const origin = "http://localhost:3000";
 async function withApi(run) {

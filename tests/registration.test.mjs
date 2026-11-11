@@ -1,4 +1,4 @@
-﻿import test from "node:test";
+import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import { createRequire } from "node:module";
@@ -6,7 +6,7 @@ import { pathToFileURL } from "node:url";
 import ts from "typescript";
 const require = createRequire(import.meta.url);
 const source = fs.readFileSync(
-  new URL("../features/auth/registration-preview.ts", import.meta.url),
+  new URL("./fixtures/registration-preview.ts", import.meta.url),
   "utf8",
 );
 const compiled = ts

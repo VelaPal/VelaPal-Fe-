@@ -1,9 +1,9 @@
-﻿import test from "node:test";
+import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import ts from "typescript";
 const source = fs.readFileSync(
-  new URL("../features/admin/admin-preview.ts", import.meta.url),
+  new URL("./fixtures/admin-preview.ts", import.meta.url),
   "utf8",
 );
 const compiled = ts.transpileModule(source, {

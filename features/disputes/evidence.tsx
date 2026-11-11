@@ -35,10 +35,6 @@ function Source({
   );
   const source = result.data ?? s;
   const own = source.ownerParty === session?.activeWorkspace.type;
-  const binding =
-    process.env.NEXT_PUBLIC_API_MODE !== "api"
-      ? result.data?.mockShareParamsHash
-      : undefined;
   return (
     <li
       id={`source-${s.sourceId}`}
@@ -67,8 +63,7 @@ function Source({
         </a>
       ) : (
         <p className="text-xs text-slate-500">
-          File preview unavailable. Mock scanning does not inspect file
-          contents.
+          No authorized file preview URL was supplied by the API.
         </p>
       )}
       {own && source.audience === "PRIVATE" && (
@@ -85,30 +80,18 @@ function Source({
           </label>
           <button
             className="vp-button"
-            disabled={
-              action.busy ||
-              !consent ||
-              source.scanState !== "CLEAN" ||
-              !binding
-            }
+            disabled
             onClick={() =>
               void action.run(async () => {
-                await disputesService.shareSource(
-                  caseId,
-                  source.sourceId,
-                  source.sourceVersion,
-                  "CASE_SHARED",
-                  binding!,
+                throw new Error(
+                  "Source sharing is unavailable: authoritative consent hash discovery is not defined in the contract.",
                 );
-                setConsent(false);
-                await result.mutate();
-                await refresh();
               }, "Source shared. Previous assessment and consents must be reviewed.")
             }
           >
             Share with case
           </button>
-          {!binding && source.scanState === "CLEAN" && (
+          {source.scanState === "CLEAN" && (
             <p className="text-xs text-amber-800">
               Sharing unavailable until the backend supplies an authoritative
               consent binding.
@@ -128,6 +111,7 @@ function Source({
                 source.sourceVersion,
                 reason,
               );
+              await result.mutate(undefined, { revalidate: false });
               await refresh();
             }, "Source revoked. Previous assessment and consents invalidated.");
           }}
@@ -201,7 +185,7 @@ export default function Evidence({
               setFile(null);
               if (fileInput.current) fileInput.current.value = "";
               await refresh();
-            }, "Uploaded privately. Simulated scan is processing.");
+            }, "Uploaded privately. Backend scan is processing.");
           }}
         >
           <label className="vp-label">

@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 import { type ReactNode, useState } from "react";
 import { useSession } from "@/features/auth/session";
 import { Panel, useAction } from "@/components/ui/workflow";
@@ -29,16 +29,15 @@ export function WorkspaceHeading({
 export function PreviewDisclosure() {
   return (
     <p className="vp-p1-disclosure">
-      Frontend preview · Fictional P1 records, stored in this tab. These are
-      separate from API purchases, balances, permissions and provider results.
+      This feature is unavailable until its backend integration is defined.
     </p>
   );
 }
 export function UnavailablePreview() {
   return (
     <AdminNotice>
-      This screen needs a confirmed backend integration in API mode. Explore its
-      fictional frontend flow in mock mode.
+      This feature is unavailable: its public endpoint is not defined in the
+      VelaPal API contract.
     </AdminNotice>
   );
 }
@@ -66,12 +65,7 @@ export function PartySecurity() {
               ? "Cookie-authenticated mock session"
               : "Current signed-in session",
           ],
-          [
-            "Other sample session",
-            state.otherSessionRevoked
-              ? "Revoked · local fixture"
-              : "Mobile browser · fixture",
-          ],
+          ["Other sessions", "Unavailable"],
         ].map(([k, v]) => (
           <div key={k}>
             <dt>{k}</dt>

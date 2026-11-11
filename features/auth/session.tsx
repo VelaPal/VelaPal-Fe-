@@ -14,6 +14,7 @@ import { authService } from "@/services/contracts/auth.service";
 import {
   cancelWorkspaceRequests,
   clearCsrfToken,
+  setCsrfToken,
 } from "@/services/contracts/api-client";
 import type {
   AuthenticatedSession,
@@ -48,6 +49,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   function accept(s: AuthenticatedSession) {
     generation.current++;
     cancelWorkspaceRequests();
+    setCsrfToken(s.csrfToken);
     setSession(s);
     setWorkspaces([s.activeWorkspace]);
     setLoading(false);
@@ -60,9 +62,16 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     setError(null);
     try {
       const restored = await authService.restoreSession();
-      if (requestGeneration === generation.current) setSession(restored);
+      if (requestGeneration === generation.current) {
+        setCsrfToken(restored.csrfToken);
+        cancelWorkspaceRequests();
+        setSession(restored);
+        setRevision((v) => v + 1);
+      }
     } catch (e) {
       if (requestGeneration === generation.current) {
+        clearCsrfToken();
+        cancelWorkspaceRequests();
         setSession(null);
         setError(e instanceof Error ? e : new Error("Session recovery failed"));
       }
@@ -72,11 +81,15 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }
   useEffect(() => {
     let active = true;
+    const controller = new AbortController();
     const requestGeneration = generation.current;
     void authService
-      .restoreSession()
+      .restoreSession(controller.signal)
       .then((s) => {
-        if (active && requestGeneration === generation.current) setSession(s);
+        if (active && requestGeneration === generation.current) {
+          setCsrfToken(s.csrfToken);
+          setSession(s);
+        }
       })
       .catch((e) => {
         if (active && requestGeneration === generation.current) {
@@ -103,6 +116,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     window.addEventListener("velapal:session-expired", expired);
     return () => {
       active = false;
+      controller.abort();
       window.removeEventListener("velapal:session-expired", expired);
     };
     // Session recovery runs once; individual 401 responses invalidate it afterward.
@@ -116,7 +130,12 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         .then((r) => {
           if (active) setWorkspaces(r.items);
         })
-        .catch(() => {});
+        .catch((e) => {
+          if (active)
+            setError(
+              e instanceof Error ? e : new Error("Workspace list unavailable"),
+            );
+        });
       return () => {
         active = false;
       };
@@ -133,11 +152,34 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }
   async function switchWorkspace(id: string, stepUpId?: string) {
     generation.current++;
+    setLoading(true);
     cancelWorkspaceRequests();
-    const next = await authService.switchWorkspace(id, stepUpId);
-    if (session) setSession({ ...session, ...next });
-    setRevision((v) => v + 1);
-    router.replace("/workspace");
+    try {
+      const next = await authService.switchWorkspace(id, stepUpId);
+      cancelWorkspaceRequests();
+      if (session) setSession({ ...session, ...next });
+      setError(null);
+      setRevision((v) => v + 1);
+      router.replace("/workspace");
+    } catch (cause) {
+      // A transport failure may occur after the server switches context. Require
+      // session recovery before rendering either workspace again.
+      clearCsrfToken();
+      cancelWorkspaceRequests();
+      setSession(null);
+      setWorkspaces([]);
+      setRevision((v) => v + 1);
+      setError(
+        cause instanceof Error
+          ? cause
+          : new Error(
+              "Workspace switch could not be confirmed. Recover your session.",
+            ),
+      );
+      throw cause;
+    } finally {
+      setLoading(false);
+    }
   }
   return (
     <Context.Provider

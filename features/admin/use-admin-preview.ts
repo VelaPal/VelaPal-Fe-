@@ -1,81 +1,29 @@
-﻿"use client";
-import { useCallback, useSyncExternalStore } from "react";
-import { useSession } from "@/features/auth/session";
-import {
-  createAdminPreview,
-  applyAdminPreviewAction,
-  type AdminPreview,
-  type PreviewAction,
-} from "./admin-preview";
-const states = new Map<string, AdminPreview>();
-const listeners = new Set<() => void>();
-const fallback = createAdminPreview();
-function subscribe(fn: () => void) {
-  listeners.add(fn);
-  return () => {
-    listeners.delete(fn);
-  };
-}
-function getState(key: string) {
-  if (!states.has(key)) {
-    let stored: AdminPreview | null = null;
-    try {
-      const raw = sessionStorage.getItem(key);
-      if (raw) {
-        const data = JSON.parse(raw);
-        if (
-          Array.isArray(data.users) &&
-          Array.isArray(data.merchants) &&
-          Array.isArray(data.audit) &&
-          Array.isArray(data.permissions) &&
-          Array.isArray(data.invitations) &&
-          typeof data.aiEnabled === "boolean"
-        )
-          stored = data;
-      }
-    } catch {}
-    states.set(key, stored ?? createAdminPreview());
-  }
-  return states.get(key)!;
-}
+"use client";
+import type { AdminPreview, PreviewAction } from "./admin-preview";
+// No public administration endpoints exist for these screens in the frozen contract.
+const unavailable: AdminPreview = {
+  users: [],
+  merchants: [],
+  aiEnabled: false,
+  permissions: [],
+  otherSessionRevoked: false,
+  invitations: [],
+  audit: [],
+};
 export function useAdminPreview() {
-  const { session } = useSession();
-  const enabled =
-    process.env.NEXT_PUBLIC_API_MODE !== "api" &&
-    session?.activeWorkspace.type === "ADMIN";
-  const key = `velapal:admin-preview:${session?.user.id}:${session?.activeWorkspace.workspaceId}`;
-  const read = useCallback(
-    () => (enabled ? getState(key) : fallback),
-    [key, enabled],
-  );
-  const state = useSyncExternalStore(subscribe, read, () => fallback);
   return {
-    state,
-    enabled,
-    commit: (action: PreviewAction, reason: string, code: string) => {
-      if (!enabled || !session)
-        throw new Error(
-          "This action is available in the local Admin preview only.",
-        );
-      const next = applyAdminPreviewAction(
-        getState(key),
-        {
-          name: session.user.name,
-          workspaceType: session.activeWorkspace.type,
-        },
-        action,
-        reason,
-        code,
+    state: unavailable,
+    enabled: false,
+    commit: (_action: PreviewAction, _reason: string, _code: string): never => {
+      void _action;
+      void _reason;
+      void _code;
+      throw new Error(
+        "This administrative action has no defined backend endpoint.",
       );
-      sessionStorage.setItem(key, JSON.stringify(next));
-      states.set(key, next);
-      listeners.forEach((fn) => fn());
     },
-    reset: () => {
-      if (!enabled) return;
-      sessionStorage.removeItem(key);
-      states.set(key, createAdminPreview());
-      listeners.forEach((fn) => fn());
+    reset: (): never => {
+      throw new Error("There are no local administrative records to reset.");
     },
   };
 }

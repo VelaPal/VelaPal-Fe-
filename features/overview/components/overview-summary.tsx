@@ -5,9 +5,7 @@ type OverviewSummaryProps = {
   summary: OverviewSummaryData;
 };
 
-export default function OverviewSummary({
-  summary,
-}: OverviewSummaryProps) {
+export default function OverviewSummary({ summary }: OverviewSummaryProps) {
   const spending = new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: summary.currency,
@@ -23,7 +21,10 @@ export default function OverviewSummary({
     {
       id: "subscriptions",
       label: "Active subscriptions",
-      value: String(summary.activeSubscriptions),
+      value:
+        summary.activeSubscriptions === null
+          ? "Unavailable"
+          : String(summary.activeSubscriptions),
       description: "Subscriptions managed in VelaPal",
     },
     {

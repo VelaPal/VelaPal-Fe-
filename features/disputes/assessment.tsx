@@ -42,18 +42,23 @@ export default function Assessment({
         <Badge>{a.modelMode === "live" ? "Live AI" : "Simulated AI"}</Badge>
         <Badge>Input v{a.inputVersion}</Badge>
       </div>
+      {a.error && (
+        <p role="alert">
+          {a.error.code}: {a.error.message}
+        </p>
+      )}
       <p className="rounded-xl bg-amber-50 p-3 text-amber-900">
-        Uncertainty: {a.uncertainty}
+        Uncertainty: {a.uncertainty ?? "Not supplied"}
       </p>
       {[
-        ["Verified facts", a.verifiedFacts],
-        ["Party claims", a.claims],
-        ["Findings & conflicting claims", a.findings],
+        ["Verified facts", a.verifiedFacts ?? []],
+        ["Party claims", a.claims ?? []],
+        ["Findings & conflicting claims", a.findings ?? []],
       ].map(([title, items]) => (
         <div key={String(title)}>
           <h3 className="font-semibold">{String(title)}</h3>
           <ul className="mt-2 space-y-3">
-            {(items as typeof a.verifiedFacts).map((f, i) => (
+            {(items as NonNullable<typeof a.verifiedFacts>).map((f, i) => (
               <li key={i}>
                 {"party" in f && <strong>{String(f.party)}: </strong>}
                 {f.text}
@@ -68,7 +73,7 @@ export default function Assessment({
       ))}
       <div>
         <h3 className="font-semibold">Missing evidence</h3>
-        {a.missingEvidence.length ? (
+        {a.missingEvidence?.length ? (
           <ul className="mt-2 list-inside list-disc">
             {a.missingEvidence.map((x) => (
               <li key={x}>{x}</li>
@@ -83,7 +88,7 @@ export default function Assessment({
         {a.nextStep.replaceAll("_", " ")}
       </p>
       <p>
-        Policy references: {a.policyReferences.join(", ") || "None supplied"}
+        Policy references: {a.policyReferences?.join(", ") || "None supplied"}
       </p>
       {a.requiresHumanApproval && (
         <p className="text-amber-800">

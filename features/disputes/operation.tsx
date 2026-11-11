@@ -47,6 +47,7 @@ export default function OperationTracker({
                 void action.run(async () => {
                   key.current ||= crypto.randomUUID();
                   await operationsService.reconcile(operationId, key.current);
+                  key.current = ""; // A later deliberate reconciliation queries again; transport retries reuse the key.
                   await op.mutate();
                 }, "Existing operation checked. Read the returned status; no new execution was created.")
               }

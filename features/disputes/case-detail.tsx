@@ -36,12 +36,14 @@ export default function CaseDetail({ caseId }: { caseId: string }) {
   const [terms, setTerms] = useState("");
   const [amount, setAmount] = useState("2000");
   const [route, setRoute] = useState<SettlementRoute>("PAYPAL_CAPTURE_REFUND");
-  const [checked, setChecked] = useState(false);
+  const [now, setNow] = useState(Date.now);
+  const [reviewedBinding, setReviewedBinding] = useState("");
   const [mediation, setMediation] = useState(false);
   const [mediationDecision, setMediationDecision] = useState<
     "APPROVED" | "REJECTED"
   >("APPROVED");
-  const executionKey = useRef("");
+  const [submittedOperation, setSubmittedOperation] = useState("");
+  const executionKey = useRef<{ binding: string; key: string } | null>(null);
   const poll = useSWR(
     runId
       ? [session?.activeWorkspace.workspaceId, "assessment-run", runId]
@@ -66,7 +68,42 @@ export default function CaseDetail({ caseId }: { caseId: string }) {
   const d = result.data;
   const c = d?.case;
   const p = d?.activeProposal;
+  useEffect(() => {
+    if (!p) return;
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, [p]);
   const party = session?.activeWorkspace.type;
+  const proposalBinding = p
+    ? JSON.stringify([
+        p.actionRequestId,
+        p.proposalVersion,
+        p.caseVersion,
+        p.paramsHash,
+        p.terms,
+        p.money,
+        p.route,
+        p.expiresAt,
+        c?.caseVersion,
+      ])
+    : "";
+  const checked = !!proposalBinding && reviewedBinding === proposalBinding;
+  const validProposal =
+    !!p &&
+    p.caseVersion === c?.caseVersion &&
+    Date.parse(p.expiresAt) > now &&
+    p.status === "AWAITING_CONSENT";
+  const requiredConsents = [
+    ["CUSTOMER", "ACCEPT_PROPOSAL_TERMS"],
+    ["SELLER", "ACCEPT_PROPOSAL_TERMS"],
+    ["SELLER", "AUTHORIZE_FINANCIAL_EXECUTION"],
+  ];
+  const allConsented = requiredConsents.every(([party, intent]) =>
+    d?.pendingConsents.some(
+      (x) =>
+        x.party === party && x.intent === intent && x.status === "APPROVED",
+    ),
+  );
   if (party === "ADMIN")
     return (
       <Link className="vp-link" href={`/workspace/admin/${caseId}`}>
@@ -85,10 +122,6 @@ export default function CaseDetail({ caseId }: { caseId: string }) {
         </button>
       </div>
     );
-  const bindings =
-    process.env.NEXT_PUBLIC_API_MODE !== "api"
-      ? d.mockConsentBindings
-      : undefined;
   const refresh = () => result.mutate();
   const assessment = d.latestAssessment;
   const stale =
@@ -99,7 +132,13 @@ export default function CaseDetail({ caseId }: { caseId: string }) {
     decision: "APPROVED" | "REJECTED",
     stepUpId: string | null = null,
   ) {
-    if (!p || !checked)
+    if (
+      !p ||
+      !checked ||
+      !validProposal ||
+      !c?.capabilities.canGrantConsent ||
+      Date.parse(p.expiresAt) <= Date.now()
+    )
       throw new Error("Review and acknowledge the exact terms");
     await disputesService.grantConsent(p.actionRequestId, p.proposalVersion, {
       paramsHash: p.paramsHash,
@@ -146,6 +185,9 @@ export default function CaseDetail({ caseId }: { caseId: string }) {
       </header>
       <ErrorNotice error={result.error} />
       {action.feedback}
+      {submittedOperation && (
+        <OperationTracker operationId={submittedOperation} />
+      )}
       <nav aria-label="Case sections" className="vp-case-tabs">
         {[
           "Evidence",
@@ -377,7 +419,7 @@ export default function CaseDetail({ caseId }: { caseId: string }) {
                   reason,
                   contestedFindingIds:
                     assessment?.findings
-                      .filter((f) => f.kind === "CONFLICT")
+                      ?.filter((f) => f.kind === "CONFLICT")
                       .map((f) => f.findingId) ?? [],
                   newSourceRefs: [],
                 });
@@ -440,24 +482,12 @@ export default function CaseDetail({ caseId }: { caseId: string }) {
                 </label>
                 <button
                   className="vp-button mt-3"
-                  disabled={
-                    action.busy ||
-                    !mediation ||
-                    !!stale ||
-                    !bindings ||
-                    c.control !== "RUNNING"
-                  }
+                  disabled
                   onClick={() =>
                     void action.run(async () => {
-                      await disputesService.mediationConsent(
-                        caseId,
-                        c.caseVersion,
-                        assessment.runId,
-                        bindings!.mediationParamsHash,
-                        mediationDecision,
+                      throw new Error(
+                        "Mediation consent is unavailable: authoritative paramsHash discovery is not defined in the contract.",
                       );
-                      setMediation(false);
-                      await refresh();
                     })
                   }
                 >
@@ -465,12 +495,12 @@ export default function CaseDetail({ caseId }: { caseId: string }) {
                 </button>
               </>
             )}
-            {!bindings && (
+            {
               <p className="mt-3 text-sm text-amber-800">
-                Consent/proposal drafting unavailable until backend supplies
+                Consent/proposal drafting unavailable until the contract defines
                 authoritative mediation and source-manifest bindings.
               </p>
-            )}
+            }
           </Panel>
           <Panel title="Draft a voluntary proposal">
             <form
@@ -478,22 +508,9 @@ export default function CaseDetail({ caseId }: { caseId: string }) {
               onSubmit={(e) => {
                 e.preventDefault();
                 void action.run(async () => {
-                  if (!bindings)
-                    throw new Error("Authoritative source digest unavailable");
-                  const amountMinor = Number(amount);
-                  if (!Number.isSafeInteger(amountMinor) || amountMinor < 0)
-                    throw new Error(
-                      "Amount must be nonnegative integer minor units",
-                    );
-                  await disputesService.propose(caseId, c.caseVersion, {
-                    terms,
-                    money: { amountMinor, currency: "USD" },
-                    route,
-                    sourceDigest: bindings.sourceDigest,
-                    expiresInMinutes: 60,
-                  });
-                  setChecked(false);
-                  await refresh();
+                  throw new Error(
+                    "Proposal creation is unavailable: authoritative sourceDigest discovery is not defined in the contract.",
+                  );
                 }, "Proposal created. Both parties must review the exact terms.");
               }}
             >
@@ -537,15 +554,7 @@ export default function CaseDetail({ caseId }: { caseId: string }) {
                   </select>
                 </label>
               </div>
-              <button
-                className="vp-button"
-                disabled={
-                  action.busy ||
-                  !bindings ||
-                  !c.capabilities.canProposeTerms ||
-                  c.control !== "RUNNING"
-                }
-              >
+              <button className="vp-button" disabled>
                 Create proposal
               </button>
             </form>
@@ -579,7 +588,11 @@ export default function CaseDetail({ caseId }: { caseId: string }) {
                     type="checkbox"
                     className="mt-1"
                     checked={checked}
-                    onChange={(e) => setChecked(e.target.checked)}
+                    onChange={(e) =>
+                      setReviewedBinding(
+                        e.target.checked ? proposalBinding : "",
+                      )
+                    }
                   />
                   I reviewed these exact terms, amount, route, expiry and
                   current case version.
@@ -590,7 +603,7 @@ export default function CaseDetail({ caseId }: { caseId: string }) {
                     disabled={
                       action.busy ||
                       !checked ||
-                      p.caseVersion !== c.caseVersion ||
+                      !validProposal ||
                       !c.capabilities.canGrantConsent
                     }
                     onClick={() =>
@@ -604,7 +617,12 @@ export default function CaseDetail({ caseId }: { caseId: string }) {
                   </button>
                   <button
                     className="vp-secondary"
-                    disabled={action.busy || !checked}
+                    disabled={
+                      action.busy ||
+                      !checked ||
+                      !validProposal ||
+                      !c.capabilities.canGrantConsent
+                    }
                     onClick={() =>
                       void action.run(
                         () => consent("ACCEPT_PROPOSAL_TERMS", "REJECTED"),
@@ -615,15 +633,18 @@ export default function CaseDetail({ caseId }: { caseId: string }) {
                     Reject proposal terms
                   </button>
                 </div>
-                {party === "SELLER" && checked && (
-                  <MfaStepUp
-                    purpose="MERCHANT_EXECUTION"
-                    targetId={p.actionRequestId}
-                    onVerified={(id) =>
-                      consent("AUTHORIZE_FINANCIAL_EXECUTION", "APPROVED", id)
-                    }
-                  />
-                )}
+                {party === "SELLER" &&
+                  checked &&
+                  validProposal &&
+                  c.capabilities.canGrantConsent && (
+                    <MfaStepUp
+                      purpose="MERCHANT_EXECUTION"
+                      targetId={p.actionRequestId}
+                      onVerified={(id) =>
+                        consent("AUTHORIZE_FINANCIAL_EXECUTION", "APPROVED", id)
+                      }
+                    />
+                  )}
                 <p className="text-xs text-slate-600">
                   AUTHORIZE_FINANCIAL_EXECUTION is a separate Seller decision
                   requiring scoped MFA. Accepting terms does not move funds.
@@ -634,18 +655,28 @@ export default function CaseDetail({ caseId }: { caseId: string }) {
                     disabled={
                       action.busy ||
                       !c.capabilities.canExecuteSettlement ||
-                      d.providerOperation.status === "UNKNOWN" ||
-                      d.pendingConsents.some((x) => x.status !== "APPROVED")
+                      !!submittedOperation ||
+                      !validProposal ||
+                      c.control !== "RUNNING" ||
+                      !allConsented ||
+                      !["IDLE", "FAILED", "UNAVAILABLE"].includes(
+                        d.providerOperation.status,
+                      )
                     }
                     onClick={() =>
                       void action.run(async () => {
-                        executionKey.current ||= crypto.randomUUID();
-                        await disputesService.execute(
+                        if (executionKey.current?.binding !== proposalBinding)
+                          executionKey.current = {
+                            binding: proposalBinding,
+                            key: crypto.randomUUID(),
+                          };
+                        const accepted = await disputesService.execute(
                           p.actionRequestId,
                           c.caseVersion,
                           p.paramsHash,
-                          executionKey.current,
+                          executionKey.current.key,
                         );
+                        setSubmittedOperation(accepted.operationId);
                         await refresh();
                       }, "Execution submitted. Check provider operation status.")
                     }
@@ -655,8 +686,8 @@ export default function CaseDetail({ caseId }: { caseId: string }) {
                 )}
                 {!c.capabilities.canExecuteSettlement && (
                   <p className="text-amber-800">
-                    Financial execution unavailable for this case. No refund has
-                    been executed.
+                    Financial execution unavailable for this case. Review the
+                    provider operation for its verified outcome.
                   </p>
                 )}
               </div>

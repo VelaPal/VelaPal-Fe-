@@ -1,17 +1,14 @@
-﻿"use client";
+"use client";
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { ArrowRight, UserRound, Store } from "lucide-react";
 import AuthLayout from "@/components/layout/auth-layout";
 import PasswordField from "@/components/ui/password-field";
 import {
   registrationSchema,
-  createRegistrationPreview,
   type RegistrationInput,
 } from "@/features/auth/registration-preview";
 export default function RegisterPage() {
-  const router = useRouter();
   const [form, setForm] = useState<RegistrationInput>({
     party: "CUSTOMER",
     name: "",
@@ -71,15 +68,11 @@ export default function RegisterPage() {
             );
             return;
           }
-          try {
-            createRegistrationPreview(parsed.data);
-            setForm((v) => ({ ...v, password: "", confirmPassword: "" }));
-            router.push("/verify-email");
-          } catch {
-            setErrors({
-              storage: "Allow session storage to continue this local preview.",
-            });
-          }
+          setErrors({
+            storage:
+              "Registration is unavailable: the API contract does not define account creation.",
+          });
+          setForm((v) => ({ ...v, password: "", confirmPassword: "" }));
         }}
       >
         <div
@@ -170,7 +163,7 @@ export default function RegisterPage() {
           error={errors.password}
         />
         <p className="vp-form-note">
-          Use 15–128 characters. Demo passwords are validated, then discarded.
+          Use 15–128 characters. Account creation is currently unavailable.
         </p>
         <PasswordField
           id="register-confirm"
@@ -186,7 +179,7 @@ export default function RegisterPage() {
             onChange={(e) => update("terms", e.target.checked)}
           />
           <span>
-            I agree to the demo <Link href="/terms">Terms</Link> and{" "}
+            I agree to the <Link href="/terms">Terms</Link> and{" "}
             <Link href="/privacy">Privacy</Link> notice.
           </span>
         </label>
@@ -196,7 +189,7 @@ export default function RegisterPage() {
           </p>
         )}
         {errors.storage && <p role="alert">{errors.storage}</p>}
-        <button className="vp-button w-full">
+        <button className="vp-button w-full" disabled>
           Create {form.party === "SELLER" ? "seller" : "personal"} account
           <ArrowRight size={16} />
         </button>
@@ -209,8 +202,8 @@ export default function RegisterPage() {
         connect PayPal.
       </p>
       <p className="vp-auth-disclosure">
-        Prototype only. Use fictional information. Authentication, email and MFA
-        are simulated; no real payment or credential is created.
+        Account creation and email verification are unavailable until the
+        backend contract defines these endpoints.
       </p>
     </AuthLayout>
   );

@@ -14,7 +14,6 @@ import {
 } from "lucide-react";
 import { useSession } from "@/features/auth/session";
 import { transactionsService } from "@/services/contracts/transactions.service";
-import { useCases } from "@/features/disputes/hooks";
 import { Panel, ErrorNotice, useAction } from "@/components/ui/workflow";
 import StatCard from "@/components/ui/stat-card";
 import {
@@ -46,14 +45,33 @@ function useMerchantTransactions() {
   );
 }
 export function SellerProducts() {
-  const { state, enabled, role, commit } = useWorkspacePreview();
+  const { enabled, role, commit } = useWorkspacePreview();
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("All");
   const [edit, setEdit] = useState<PreviewProduct | null>(null);
   const [price, setPrice] = useState("");
   const [archive, setArchive] = useState<PreviewProduct | null>(null);
   const action = useAction();
-  const rows = state.products.filter(
+  const { session } = useSession();
+  const catalog = useSWR(
+    role === "SELLER"
+      ? [session?.activeWorkspace.workspaceId, "seller-catalog"]
+      : null,
+    () => transactionsService.catalog(),
+  );
+  const catalogProducts: PreviewProduct[] = (catalog.data?.items ?? []).flatMap(
+    (p) =>
+      p.variants.map((v) => ({
+        id: p.id + ":" + v.id,
+        name: p.name,
+        variant: v.id,
+        sku: "Not supplied",
+        type: "physical" as const,
+        amountMinor: v.amountMinor,
+        status: "Read only" as const,
+      })),
+  );
+  const rows = catalogProducts.filter(
     (p) =>
       (status === "All" || p.status === status) &&
       `${p.name} ${p.variant} ${p.sku}`
@@ -65,7 +83,9 @@ export function SellerProducts() {
   return (
     <div className="vp-feature-page">
       <WorkspaceHeading
-        eyebrow={state.business.name.toUpperCase()}
+        eyebrow={
+          session?.activeWorkspace.name.toUpperCase() ?? "SELLER WORKSPACE"
+        }
         title="Products & services"
         copy="Keep your catalogue clear. Existing purchase agreements never change."
         action={
@@ -90,11 +110,13 @@ export function SellerProducts() {
           </button>
         }
       />
-      {!enabled ? (
-        <UnavailablePreview />
-      ) : (
+      {
         <>
-          <PreviewDisclosure />
+          <UnavailablePreview />
+          <ErrorNotice error={catalog.error} />
+          {catalog.isLoading && (
+            <p role="status">Loading authorized catalog...</p>
+          )}
           <div className="vp-admin-filters">
             <AdminSearch
               label="Search products or SKU…"
@@ -107,7 +129,7 @@ export function SellerProducts() {
               value={status}
               onChange={(e) => setStatus(e.target.value)}
             >
-              {["All", "Published", "Archived"].map((s) => (
+              {["All", "Read only"].map((s) => (
                 <option key={s}>{s}</option>
               ))}
             </select>
@@ -131,11 +153,12 @@ export function SellerProducts() {
                 <p>{p.variant}</p>
                 <strong>
                   {formatMoney(p.amountMinor)}
-                  <small>{p.type === "subscription" ? "/ month" : "USD"}</small>
+                  <small>USD</small>
                 </strong>
                 <footer>
                   <button
                     className="vp-link"
+                    disabled
                     onClick={() => {
                       setEdit({ ...p });
                       setPrice((p.amountMinor / 100).toFixed(2));
@@ -144,7 +167,11 @@ export function SellerProducts() {
                     Edit details
                     <ArrowRight size={13} />
                   </button>
-                  <button className="vp-link" onClick={() => setArchive(p)}>
+                  <button
+                    className="vp-link"
+                    disabled
+                    onClick={() => setArchive(p)}
+                  >
                     {p.status === "Published" ? "Archive" : "Publish"}
                   </button>
                 </footer>
@@ -157,15 +184,15 @@ export function SellerProducts() {
             </p>
           )}
           <AdminNotice>
-            Catalogue preview changes affect future demo records only. They
-            never rewrite an approved API purchase snapshot or the API
-            catalogue.
+            Catalog records are provided by the API. Product editing, publishing
+            and archiving are unavailable because their endpoints are not
+            defined.
           </AdminNotice>
           {action.feedback}
           {edit && (
             <AdminDialog
               title={
-                state.products.some((p) => p.id === edit.id)
+                catalogProducts.some((p) => p.id === edit.id)
                   ? "Edit product details"
                   : "Add a product"
               }
@@ -286,7 +313,7 @@ export function SellerProducts() {
             </AdminDialog>
           )}
         </>
-      )}
+      }
     </div>
   );
 }
@@ -406,6 +433,7 @@ function OrderPreview({
   );
 }
 export function SellerOrders() {
+  const { session } = useSession();
   const { role, state } = useWorkspacePreview();
   const data = useMerchantTransactions();
   const [query, setQuery] = useState("");
@@ -425,7 +453,9 @@ export function SellerOrders() {
   return (
     <div className="vp-feature-page">
       <WorkspaceHeading
-        eyebrow="VELA MARKET"
+        eyebrow={
+          session?.activeWorkspace.name.toUpperCase() ?? "SELLER WORKSPACE"
+        }
         title="Orders"
         copy="Follow every order from payment to delivery."
       />
@@ -501,6 +531,7 @@ export function SellerOrders() {
   );
 }
 export function SellerPayments({ insights = false }: { insights?: boolean }) {
+  const { session } = useSession();
   const { role } = useWorkspacePreview();
   const data = useMerchantTransactions();
   const all = data.data?.items ?? [];
@@ -513,7 +544,9 @@ export function SellerPayments({ insights = false }: { insights?: boolean }) {
   return (
     <div className="vp-feature-page">
       <WorkspaceHeading
-        eyebrow="VELA MARKET"
+        eyebrow={
+          session?.activeWorkspace.name.toUpperCase() ?? "SELLER WORKSPACE"
+        }
         title={insights ? "Customer insights" : "Payments"}
         copy={
           insights
@@ -664,17 +697,19 @@ export function SellerPayments({ insights = false }: { insights?: boolean }) {
   );
 }
 export function SellerAssistant() {
+  const { session } = useSession();
   const { role, enabled } = useWorkspacePreview();
   const data = useMerchantTransactions();
-  const cases = useCases();
   const [prompt, setPrompt] = useState("");
-  const [draft, setDraft] = useState("");
+  const [draft] = useState("");
   if (role !== "SELLER")
     return <p role="alert">A Seller workspace is required.</p>;
   return (
     <div className="vp-feature-page">
       <WorkspaceHeading
-        eyebrow="VELA MARKET"
+        eyebrow={
+          session?.activeWorkspace.name.toUpperCase() ?? "SELLER WORKSPACE"
+        }
         title="A little help for your business."
         copy="Prepare a next step from the information you are allowed to see."
       />
@@ -705,13 +740,7 @@ export function SellerAssistant() {
               className="vp-auth-form vp-seller-assistant-form"
               onSubmit={(e) => {
                 e.preventDefault();
-                const unconfirmed =
-                  data.data?.items.filter(
-                    (t) => t.paymentStatus === "UNCONFIRMED",
-                  ).length ?? 0;
-                setDraft(
-                  `Scripted preparation preview. ${data.data?.items.length ?? 0} authorized payment records; ${unconfirmed} unconfirmed payment(s); ${cases.data?.items.length ?? 0} shared case(s). Review the relevant order and ask for clarification before assuming fault. No response has been sent. Your request: ${prompt.trim()}`,
-                );
+                // Broad business summaries have no defined endpoint; case preparation below uses the API.
               }}
             >
               <label className="vp-label">
@@ -725,10 +754,7 @@ export function SellerAssistant() {
                   onChange={(e) => setPrompt(e.target.value)}
                 />
               </label>
-              <button
-                className="vp-button"
-                disabled={!data.data || !!data.error}
-              >
+              <button className="vp-button" disabled>
                 Prepare a draft
               </button>
             </form>

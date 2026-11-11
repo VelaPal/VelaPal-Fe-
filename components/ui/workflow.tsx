@@ -30,7 +30,7 @@ export function ErrorNotice({ error }: { error: unknown }) {
     422: "Check the form fields.",
     429: "Too many requests. Wait before trying again.",
     503: "The service is temporarily unavailable. Try again later.",
-    501: "This operation is unavailable in the mock. No money has moved.",
+    501: "This operation is unavailable. Check the latest provider status.",
   };
   const duplicate =
     error instanceof ApiError && error.fieldErrors.existingCaseId;
@@ -44,7 +44,7 @@ export function ErrorNotice({ error }: { error: unknown }) {
         <>
           <p className="mt-2">
             {error.code === "INVALID_ORIGIN"
-              ? "Open VelaPal at http://localhost:3000 and retry. Restart npm run dev after environment changes."
+              ? "The web origin is not allowed by the API. Check the configured frontend origin."
               : tips[error.status]}
           </p>
           <p className="mt-2 break-all text-xs">
@@ -131,10 +131,7 @@ export function MfaStepUp({
   const action = useAction();
   return (
     <div className="space-y-3 rounded-xl border border-slate-200 p-4">
-      <p className="text-sm">
-        Verify MFA for this action and target.{" "}
-        {process.env.NEXT_PUBLIC_API_MODE !== "api" && "Mock code: 123456."}
-      </p>
+      <p className="text-sm">Verify MFA for this action and target. </p>
       {!challenge ? (
         <button
           type="button"
@@ -143,6 +140,14 @@ export function MfaStepUp({
           onClick={() =>
             void action.run(async () => {
               const r = await authService.createMfaChallenge(purpose, targetId);
+              if (
+                r.purpose !== purpose ||
+                r.targetId !== targetId ||
+                Date.parse(r.expiresAt) <= Date.now()
+              )
+                throw new Error(
+                  "The MFA challenge does not match this action.",
+                );
               setChallenge(r.challengeId);
             }, "MFA challenge created.")
           }
@@ -156,7 +161,12 @@ export function MfaStepUp({
             e.preventDefault();
             void action.run(async () => {
               const r = await authService.verifyMfa(challenge, code);
-              if (r.status !== "STEP_UP_VERIFIED")
+              if (
+                r.status !== "STEP_UP_VERIFIED" ||
+                r.purpose !== purpose ||
+                r.targetId !== targetId ||
+                Date.parse(r.expiresAt) <= Date.now()
+              )
                 throw new Error("Step-up verification required");
               setChallenge("");
               setCode("");

@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 import { useId, useState } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
@@ -7,7 +7,7 @@ import { useSession } from "@/features/auth/session";
 import { ErrorNotice, MfaStepUp, useAction } from "@/components/ui/workflow";
 import { activeNavigation, workspaceNavigation } from "./navigation";
 export function WorkspacePicker() {
-  const { session, workspaces, switchWorkspace } = useSession();
+  const { session, workspaces, switchWorkspace, error } = useSession();
   const action = useAction();
   const [pending, setPending] = useState("");
   const id = useId();
@@ -63,6 +63,7 @@ export function WorkspacePicker() {
         </div>
         <ChevronDown size={13} aria-hidden="true" />
       </div>
+      <ErrorNotice error={error} />
       <ErrorNotice error={action.error} />
       {pending && (
         <div className="vp-workspace-stepup">
@@ -95,7 +96,6 @@ export default function WorkspaceControls() {
       : role === "SELLER"
         ? "Seller workspace"
         : "Personal workspace";
-  const mock = process.env.NEXT_PUBLIC_API_MODE !== "api";
   return (
     <>
       <header className="vp-topbar">
@@ -108,7 +108,7 @@ export default function WorkspaceControls() {
         <div className="vp-topbar-actions">
           <span className="vp-connection">
             <i aria-hidden="true" />
-            {mock ? "VelaPal demo" : "VelaPal workspace"}
+            VelaPal workspace
           </span>
           {role === "ADMIN" ? (
             <button
@@ -141,19 +141,18 @@ export default function WorkspaceControls() {
           </Link>
         </div>
       </header>
-      {mock && (
+      {
         <details className="vp-demo-strip">
           <summary>
-            <span>Fictional data · No real payments, scans, or AI calls.</span>
-            <span>About this demo ↗</span>
+            <span>Payments and case actions require your approval.</span>
+            <span>About this workspace</span>
           </summary>
           <p>
-            Synthetic demo · AI, scans and business records are simulated. No
-            PayPal or Gemini calls. API data resets when the mock API restarts.
-            Local previews can be reset in Settings.
+            Records and actions are provided by the VelaPal API. Features
+            without a defined backend integration are unavailable.
           </p>
         </details>
-      )}
+      }
     </>
   );
 }

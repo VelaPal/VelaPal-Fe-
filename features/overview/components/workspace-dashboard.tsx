@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 import Link from "next/link";
 import {
   ArrowRight,
@@ -19,10 +19,9 @@ import { disputesService } from "@/services/contracts/disputes.service";
 import { AdminQueue } from "@/features/admin/admin-workspace";
 import StatCard from "@/components/ui/stat-card";
 import RecentTransactions from "@/features/transactions/components/recent-transactions";
-import OperationTracker from "@/features/disputes/operation";
-import { Panel, ErrorNotice } from "@/components/ui/workflow";
+import { ErrorNotice } from "@/components/ui/workflow";
 import { formatMoney } from "@/lib/format";
-import type { Transaction, DisputeCase } from "@/services/contracts/types";
+import type { Transaction, DisputeListItem } from "@/services/contracts/types";
 function SpendingOverview({ transactions }: { transactions: Transaction[] }) {
   const paid = transactions.filter((t) => t.paymentStatus === "PAID");
   const total = paid.reduce((sum, t) => sum + t.amountMinor, 0);
@@ -139,7 +138,7 @@ function CaseAttention({
   transactions,
   seller = false,
 }: {
-  cases: DisputeCase[];
+  cases: DisputeListItem[];
   transactions: Transaction[];
   seller?: boolean;
 }) {
@@ -523,20 +522,6 @@ export default function WorkspaceDashboard() {
             <RecentTransactions />
           </div>
         </div>
-      )}
-      {process.env.NEXT_PUBLIC_API_MODE !== "api" && (
-        <details className="vp-operation-demo">
-          <summary>
-            Operation reconciliation fixture · synthetic UNKNOWN result
-          </summary>
-          <Panel title="Operation reconciliation fixture">
-            <p className="mb-4 text-sm text-slate-600">
-              Independent synthetic UNKNOWN-operation example. No settlement was
-              executed on the cases above.
-            </p>
-            <OperationTracker operationId="op_ref_01JBYZ" />
-          </Panel>
-        </details>
       )}
     </div>
   );
